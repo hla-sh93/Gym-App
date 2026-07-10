@@ -15,10 +15,13 @@ jobs:
           channel: stable
           cache: true
 
-      # The repo intentionally contains only Dart sources; generate the
-      # missing Android platform scaffolding for the build step.
+      # Regenerate any platform files missing from the repo (gradle wrapper,
+      # etc.), then drop the template test flutter create adds — it references
+      # a MyApp class that does not exist in this app.
       - name: Generate platform scaffolding
-        run: flutter create . --platforms android --project-name personal_gym_progress_notebook
+        run: |
+          flutter create . --platforms android --project-name personal_gym_progress_notebook
+          rm -f test/widget_test.dart
 
       - name: Install dependencies
         run: flutter pub get
@@ -29,5 +32,12 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gym-notebook-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

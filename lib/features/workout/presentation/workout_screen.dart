@@ -141,11 +141,22 @@ class _ActiveWorkout extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          for (final exerciseLog in snapshot.exercises)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _ActiveExerciseCard(exerciseLog: exerciseLog),
-            ),
+          if (snapshot.exercises.isEmpty)
+            EmptyState(
+              message: context.l10n.t('noExercises'),
+              icon: Icons.fitness_center_outlined,
+              action: OutlinedButton.icon(
+                onPressed: () => GymScope.of(context).discardWorkout(),
+                icon: const Icon(Icons.close),
+                label: Text(context.l10n.t('discard')),
+              ),
+            )
+          else
+            for (final exerciseLog in snapshot.exercises)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ActiveExerciseCard(exerciseLog: exerciseLog),
+              ),
         ],
       ),
     );
@@ -281,19 +292,38 @@ class _PreviousBlock extends StatelessWidget {
     final previous = exerciseLog.previous;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.primarySoft,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              context.l10n.t('previous'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            Row(
+              children: <Widget>[
+                const Icon(Icons.history, size: 16, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  context.l10n.t('previous'),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                ),
+                if (previous != null) ...<Widget>[
+                  const Spacer(),
+                  Text(
+                    context.l10n.date(
+                      previous.session.finishedAt ??
+                          previous.session.sessionDate,
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 6),
             if (previous == null || previous.sets.isEmpty)
@@ -308,8 +338,14 @@ class _PreviousBlock extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   for (final set in previous.sets)
-                    Text(
-                      formatSetLine(context, set, exerciseLog.exercise.type),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        formatSetLine(context, set, exerciseLog.exercise.type),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
                     ),
                 ],
               ),
@@ -413,10 +449,14 @@ class _SetRowState extends State<_SetRow> {
   @override
   Widget build(BuildContext context) {
     final isWeighted = widget.type == ExerciseType.weighted;
+    final completed = widget.set.isCompleted;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8),
+        color: completed ? AppColors.successSoft : null,
+        border: Border.all(
+          color: completed ? AppColors.success : AppColors.border,
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8),

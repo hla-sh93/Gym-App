@@ -21,28 +21,28 @@ class ShellScreen extends StatelessWidget {
     ];
     return Scaffold(
       body: IndexedStack(index: controller.selectedTab, children: pages),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: controller.selectedTab,
-        onTap: controller.selectTab,
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: controller.selectedTab,
+        onDestinationSelected: controller.selectTab,
+        destinations: <NavigationDestination>[
+          NavigationDestination(
             icon: const Icon(Icons.home_outlined),
-            activeIcon: const Icon(Icons.home),
+            selectedIcon: const Icon(Icons.home),
             label: context.l10n.t('home'),
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: const Icon(Icons.event_note_outlined),
-            activeIcon: const Icon(Icons.event_note),
+            selectedIcon: const Icon(Icons.event_note),
             label: context.l10n.t('program'),
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: const Icon(Icons.fitness_center_outlined),
-            activeIcon: const Icon(Icons.fitness_center),
+            selectedIcon: const Icon(Icons.fitness_center),
             label: context.l10n.t('workout'),
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: const Icon(Icons.trending_up_outlined),
-            activeIcon: const Icon(Icons.trending_up),
+            selectedIcon: const Icon(Icons.trending_up),
             label: context.l10n.t('progress'),
           ),
         ],

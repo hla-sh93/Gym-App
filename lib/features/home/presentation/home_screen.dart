@@ -34,6 +34,22 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          if ((controller.settings?.displayName ?? '').isNotEmpty) ...<Widget>[
+            Text(
+              '${context.l10n.t('hi')} ${controller.settings!.displayName} 👋',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              context.l10n.date(DateTime.now()),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (controller.activeSession != null &&
               controller.snoozedSessionId !=
                   controller.activeSession!.session.id) ...<Widget>[

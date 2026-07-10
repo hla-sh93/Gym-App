@@ -443,9 +443,14 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
     final muscleOptions = <String>[
       'chest',
       'back',
-      'legs',
       'shoulders',
-      'arms',
+      'biceps',
+      'triceps',
+      'forearms',
+      'quads',
+      'hamstrings',
+      'glutes',
+      'calves',
       'core',
       'fullBody',
     ];

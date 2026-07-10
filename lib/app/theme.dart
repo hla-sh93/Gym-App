@@ -9,10 +9,14 @@ class AppColors {
   static const textSecondary = Color(0xFF6B7280);
   static const border = Color(0xFFE5E7EB);
   static const primary = Color(0xFF2563EB);
+  static const primarySoft = Color(0xFFEFF4FF);
   static const success = Color(0xFF16A34A);
+  static const successSoft = Color(0xFFF0FDF4);
   static const warning = Color(0xFFF59E0B);
   static const danger = Color(0xFFEF4444);
 }
+
+const double kAppRadius = 14;
 
 ThemeData buildAppTheme() {
   final colorScheme = ColorScheme.fromSeed(
@@ -23,9 +27,13 @@ ThemeData buildAppTheme() {
     error: AppColors.danger,
   );
 
-  final border = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
+  final inputBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
     borderSide: const BorderSide(color: AppColors.border),
+  );
+
+  final buttonShape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(12),
   );
 
   return ThemeData(
@@ -33,61 +41,119 @@ ThemeData buildAppTheme() {
     brightness: Brightness.light,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: AppColors.background,
-    fontFamily: null,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.background,
+      surfaceTintColor: AppColors.background,
+      titleTextStyle: TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
     cardTheme: CardThemeData(
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(kAppRadius),
         side: const BorderSide(color: AppColors.border),
       ),
       margin: EdgeInsets.zero,
     ),
     inputDecorationTheme: InputDecorationTheme(
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+      border: inputBorder,
+      enabledBorder: inputBorder,
+      focusedBorder: inputBorder.copyWith(
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
       ),
-      errorBorder: border.copyWith(
+      errorBorder: inputBorder.copyWith(
         borderSide: const BorderSide(color: AppColors.danger),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       filled: true,
       fillColor: AppColors.surface,
+      labelStyle: const TextStyle(color: AppColors.textSecondary),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(44, 50),
+        shape: buttonShape,
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size(44, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        minimumSize: const Size(44, 50),
+        shape: buttonShape,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(44, 48),
+        minimumSize: const Size(44, 50),
         side: const BorderSide(color: AppColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        foregroundColor: AppColors.textPrimary,
+        shape: buttonShape,
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        minimumSize: const Size(44, 44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+      style: TextButton.styleFrom(minimumSize: const Size(44, 44), shape: buttonShape),
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
-        shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: WidgetStatePropertyAll<RoundedRectangleBorder>(buttonShape),
+        side: const WidgetStatePropertyAll<BorderSide>(
+          BorderSide(color: AppColors.border),
         ),
       ),
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    chipTheme: ChipThemeData(
+      backgroundColor: AppColors.primarySoft,
+      side: BorderSide.none,
+      labelStyle: const TextStyle(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.textPrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColors.surface,
-      selectedItemColor: AppColors.primary,
-      unselectedItemColor: AppColors.textSecondary,
-      type: BottomNavigationBarType.fixed,
-      elevation: 0,
+      surfaceTintColor: AppColors.surface,
+      indicatorColor: AppColors.primarySoft,
+      height: 68,
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontSize: 12,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
+          color: states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.textSecondary,
+        ),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.textSecondary,
+        ),
+      ),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.success
+            : null,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      side: const BorderSide(color: AppColors.border, width: 1.4),
     ),
   );
 }

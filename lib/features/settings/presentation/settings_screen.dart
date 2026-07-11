@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
-import '../../../app/gym_app_controller.dart';
 import '../../../app/localization/app_localizations.dart';
 import '../../../app/theme.dart';
 import '../../common/presentation/common_widgets.dart';
@@ -125,58 +124,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           NotebookCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        context.l10n.t('reminders'),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    Switch(
-                      value: controller.settings?.remindersEnabled ?? false,
-                      onChanged: (value) => controller.setReminders(
-                        enabled: value,
-                        hour: controller.settings?.reminderHour ?? 18,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  context.l10n.t('remindersHint'),
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
-                ),
-                if (controller.settings?.remindersEnabled ?? false) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          context.l10n.t('reminderTime'),
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _pickTime(context, controller),
-                        icon: const Icon(Icons.schedule),
-                        label: Text(
-                          '${(controller.settings?.reminderHour ?? 18).toString().padLeft(2, '0')}:00',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          NotebookCard(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -194,20 +141,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _pickTime(
-    BuildContext context,
-    GymAppController controller,
-  ) async {
-    final current = controller.settings?.reminderHour ?? 18;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: current, minute: 0),
-    );
-    if (picked != null) {
-      await controller.setReminders(enabled: true, hour: picked.hour);
-    }
   }
 
   Future<void> _saveName() async {

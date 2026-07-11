@@ -2,11 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../core/errors/app_exception.dart';
 import '../core/input_validation.dart';
-import '../core/notifications/reminder_service.dart';
-import '../core/week_days.dart';
 import '../data/gym_repository.dart';
 import '../features/workout/domain/models.dart';
-import 'localization/app_localizations.dart';
 
 class GymAppController extends ChangeNotifier {
   GymAppController(this.repository);
@@ -111,32 +108,6 @@ class GymAppController extends ChangeNotifier {
       reminderHour: hour,
     );
     await _refresh();
-  }
-
-  Future<void> _syncReminders() async {
-    final current = settings;
-    if (current == null) {
-      return;
-    }
-    final l10n = AppLocalizations(locale);
-    final days = <ReminderDay>[];
-    if (current.remindersEnabled && program != null) {
-      for (final day in program!.days) {
-        days.add(
-          ReminderDay(
-            weekDay: day.day.weekDay,
-            title: l10n.t('appTitle'),
-            body:
-                '${weekDayName(day.day.weekDay, locale)} · ${day.day.name} — ${l10n.t('startWorkout')}',
-          ),
-        );
-      }
-    }
-    await ReminderService.instance.sync(
-      enabled: current.remindersEnabled,
-      hour: current.reminderHour,
-      days: days,
-    );
   }
 
   Future<void> createProgram({
@@ -358,8 +329,5 @@ class GymAppController extends ChangeNotifier {
     if (notify) {
       notifyListeners();
     }
-    // Reflect the current program/settings in the OS reminders. Cheap and
-    // only runs on structural changes (never on per-set edits).
-    await _syncReminders();
   }
 }

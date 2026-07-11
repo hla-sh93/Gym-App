@@ -14,6 +14,12 @@ void main() {
       expect(InputValidation.parseWeight('-5'), isNull);
     });
 
+    test('tolerates a trailing decimal separator while typing', () {
+      expect(InputValidation.parseWeight('42.'), 42);
+      expect(InputValidation.parseWeight('42,'), 42);
+      expect(InputValidation.parseWeight('.'), isNull);
+    });
+
     test('reps must be whole non-negative numbers', () {
       expect(InputValidation.parseReps('10'), 10);
       expect(InputValidation.parseReps('10.5'), isNull);

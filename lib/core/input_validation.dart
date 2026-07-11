@@ -7,7 +7,11 @@ class InputValidation {
   }
 
   static double? parseWeight(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
+    var normalized = value.trim().replaceAll(',', '.');
+    // A trailing separator means the user is mid-typing ("42."): treat as 42.
+    if (normalized.endsWith('.')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
     if (normalized.isEmpty) {
       return null;
     }

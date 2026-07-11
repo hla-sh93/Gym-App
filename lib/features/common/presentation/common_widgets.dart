@@ -316,7 +316,12 @@ String formatWeight(num value) {
   if (asDouble == asDouble.roundToDouble()) {
     return asDouble.toInt().toString();
   }
-  return asDouble.toStringAsFixed(1);
+  // Show one decimal when exact (42.5), two when needed (42.25).
+  final oneDecimal = (asDouble * 10).roundToDouble() / 10;
+  if (oneDecimal == asDouble) {
+    return asDouble.toStringAsFixed(1);
+  }
+  return asDouble.toStringAsFixed(2);
 }
 
 String formatSetLine(

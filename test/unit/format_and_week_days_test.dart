@@ -14,6 +14,11 @@ void main() {
     test('keeps one decimal for fractional weights', () {
       expect(formatWeight(42.5), '42.5');
     });
+
+    test('keeps two decimals only when needed', () {
+      expect(formatWeight(42.25), '42.25');
+      expect(formatWeight(42.50), '42.5');
+    });
   });
 
   group('week days', () {

@@ -7,6 +7,7 @@ import '../../../core/week_days.dart';
 import '../../common/presentation/common_widgets.dart';
 import '../../workout/domain/models.dart';
 import 'program_forms.dart';
+import 'weekly_schedule_screen.dart';
 
 class ProgramScreen extends StatelessWidget {
   const ProgramScreen({super.key});
@@ -18,6 +19,18 @@ class ProgramScreen extends StatelessWidget {
 
     return AppPage(
       title: context.l10n.t('program'),
+      actions: <Widget>[
+        if (snapshot != null)
+          IconButton(
+            tooltip: context.l10n.t('weeklySchedule'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const WeeklyScheduleScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.calendar_view_week_outlined),
+          ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

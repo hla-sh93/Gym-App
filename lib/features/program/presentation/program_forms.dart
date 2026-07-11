@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/localization/app_localizations.dart';
+import '../../../app/theme.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/input_validation.dart';
 import '../../../core/week_days.dart';
 import '../../../data/gym_repository.dart';
 import '../../common/presentation/common_widgets.dart';
 import '../../workout/domain/models.dart';
+import '../../workout/presentation/workout_screen.dart' show decimalWeightFormatter;
 
 Future<void> showCreateProgramSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -428,13 +431,33 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
   );
   late ExerciseType _type =
       widget.assignment?.exercise.type ?? ExerciseType.weighted;
-  late int _defaultSets = widget.assignment?.assignment.defaultSets ?? 3;
   late String? _muscle = widget.assignment?.exercise.targetMuscle;
+  late final List<_PlannedSetControllers> _sets = _initSets();
   bool _saving = false;
+
+  List<_PlannedSetControllers> _initSets() {
+    final planned = widget.assignment?.plannedSets ?? const <PlannedSet>[];
+    if (planned.isNotEmpty) {
+      return planned
+          .map((p) => _PlannedSetControllers(
+                weight: p.targetWeight,
+                reps: p.targetReps,
+              ))
+          .toList();
+    }
+    final count = widget.assignment?.assignment.defaultSets ?? 3;
+    return List<_PlannedSetControllers>.generate(
+      count,
+      (_) => _PlannedSetControllers(),
+    );
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
+    for (final row in _sets) {
+      row.dispose();
+    }
     super.dispose();
   }
 
@@ -513,37 +536,85 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
             onChanged: (value) => setState(() => _muscle = value),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  context.l10n.t('defaultSets'),
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+          Text(
+            context.l10n.t('plannedSets'),
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.t('plannedSetsHint'),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < _sets.length; index += 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 54,
+                    child: Text(
+                      '${context.l10n.t('set')} ${index + 1}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (_type == ExerciseType.weighted) ...<Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: _sets[index].weightController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: <TextInputFormatter>[
+                          decimalWeightFormatter(),
+                        ],
+                        decoration: InputDecoration(
+                          isDense: true,
+                          labelText:
+                              '${context.l10n.t('weight')} ${weightUnitLabel(context)}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: TextField(
+                      controller: _sets[index].repsController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText: context.l10n.t('reps'),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.t('delete'),
+                    onPressed: _sets.length <= 1
+                        ? null
+                        : () => setState(() => _sets.removeAt(index).dispose()),
+                    icon: const Icon(Icons.close, size: 20),
+                  ),
+                ],
               ),
-              IconButton.outlined(
-                tooltip: '-',
-                onPressed: _defaultSets <= 1
-                    ? null
-                    : () => setState(() => _defaultSets -= 1),
-                icon: const Icon(Icons.remove),
-              ),
-              SizedBox(
-                width: 48,
-                child: Text(
-                  _defaultSets.toString(),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              IconButton.outlined(
-                tooltip: '+',
-                onPressed: _defaultSets >= 20
-                    ? null
-                    : () => setState(() => _defaultSets += 1),
-                icon: const Icon(Icons.add),
-              ),
-            ],
+            ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: _sets.length >= 20
+                  ? null
+                  : () => setState(() => _sets.add(_PlannedSetControllers())),
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.t('addSet')),
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -567,13 +638,23 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       final savedLabel = context.l10n.t('exerciseSaved');
       final controller = GymScope.of(context);
       final assignment = widget.assignment;
+      final plannedSets = <PlannedSetDraft>[
+        for (final row in _sets)
+          PlannedSetDraft(
+            targetWeight: InputValidation.parseWeight(
+              row.weightController.text,
+            ),
+            targetReps: InputValidation.parseReps(row.repsController.text),
+          ),
+      ];
       if (assignment == null) {
         await controller.addExercise(
           workoutDayId: widget.workoutDayId,
           name: _nameController.text,
           type: _type,
-          defaultSets: _defaultSets,
+          defaultSets: _sets.length,
           targetMuscle: _muscle,
+          plannedSets: plannedSets,
         );
       } else {
         await controller.updateExercise(
@@ -581,8 +662,9 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
           exerciseId: assignment.exercise.id,
           name: _nameController.text,
           type: _type,
-          defaultSets: _defaultSets,
+          defaultSets: _sets.length,
           targetMuscle: _muscle,
+          plannedSets: plannedSets,
         );
       }
       if (mounted) {
@@ -598,5 +680,24 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+/// Holds the weight + reps text controllers for one planned set row.
+class _PlannedSetControllers {
+  _PlannedSetControllers({double? weight, int? reps})
+      : weightController = TextEditingController(
+          text: weight == null ? '' : formatWeight(weight),
+        ),
+        repsController = TextEditingController(
+          text: reps?.toString() ?? '',
+        );
+
+  final TextEditingController weightController;
+  final TextEditingController repsController;
+
+  void dispose() {
+    weightController.dispose();
+    repsController.dispose();
   }
 }

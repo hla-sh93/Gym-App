@@ -2,8 +2,11 @@ import 'package:flutter/widgets.dart';
 
 import '../core/errors/app_exception.dart';
 import '../core/input_validation.dart';
+import '../core/notifications/reminder_service.dart';
+import '../core/week_days.dart';
 import '../data/gym_repository.dart';
 import '../features/workout/domain/models.dart';
+import 'localization/app_localizations.dart';
 
 class GymAppController extends ChangeNotifier {
   GymAppController(this.repository);
@@ -98,6 +101,44 @@ class GymAppController extends ChangeNotifier {
     await _refresh();
   }
 
+  Future<void> setReminders({required bool enabled, int? hour}) async {
+    final current = settings;
+    await repository.saveSettings(
+      languageCode: current?.languageCode ?? 'en',
+      onboardingCompleted: current?.onboardingCompleted ?? true,
+      displayName: current?.displayName,
+      remindersEnabled: enabled,
+      reminderHour: hour,
+    );
+    await _refresh();
+  }
+
+  Future<void> _syncReminders() async {
+    final current = settings;
+    if (current == null) {
+      return;
+    }
+    final l10n = AppLocalizations(locale);
+    final days = <ReminderDay>[];
+    if (current.remindersEnabled && program != null) {
+      for (final day in program!.days) {
+        days.add(
+          ReminderDay(
+            weekDay: day.day.weekDay,
+            title: l10n.t('appTitle'),
+            body:
+                '${weekDayName(day.day.weekDay, locale)} · ${day.day.name} — ${l10n.t('startWorkout')}',
+          ),
+        );
+      }
+    }
+    await ReminderService.instance.sync(
+      enabled: current.remindersEnabled,
+      hour: current.reminderHour,
+      days: days,
+    );
+  }
+
   Future<void> createProgram({
     required String name,
     required List<WorkoutDayDraft> days,
@@ -184,6 +225,7 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
+    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -195,6 +237,7 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
+      plannedSets: plannedSets,
     );
     await _refresh();
   }
@@ -206,6 +249,7 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
+    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -218,6 +262,7 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
+      plannedSets: plannedSets,
     );
     await _refresh();
   }
@@ -313,5 +358,8 @@ class GymAppController extends ChangeNotifier {
     if (notify) {
       notifyListeners();
     }
+    // Reflect the current program/settings in the OS reminders. Cheap and
+    // only runs on structural changes (never on per-set edits).
+    await _syncReminders();
   }
 }

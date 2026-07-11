@@ -175,6 +175,18 @@ const Map<String, Map<String, String>> _values = <String, Map<String, String>>{
     'workoutDayNotFound': 'Workout day was not found.',
     'sessionNotFound': 'Workout session was not found.',
     'hi': 'Hi',
+    'plannedSets': 'Sets & targets',
+    'plannedSetsHint':
+        'Set a target weight and reps for each set. They pre-fill your workout.',
+    'target': 'Target',
+    'reminders': 'Workout reminders',
+    'remindersHint':
+        'Get a daily notification on your training days. On some phones (e.g. Xiaomi) you must allow notifications and autostart for the app.',
+    'reminderTime': 'Reminder time',
+    'weeklySchedule': 'Weekly schedule',
+    'restDay': 'Rest day',
+    'progressChart': 'Top weight over time',
+    'noPlanYet': 'No targets set',
   },
   'ar': <String, String>{
     'appTitle': 'دفتر التمرين',
@@ -291,5 +303,17 @@ const Map<String, Map<String, String>> _values = <String, Map<String, String>>{
     'workoutDayNotFound': 'لم يتم العثور على يوم التمرين.',
     'sessionNotFound': 'لم يتم العثور على جلسة التمرين.',
     'hi': 'أهلاً',
+    'plannedSets': 'الدفعات والأهداف',
+    'plannedSetsHint':
+        'حدد وزن وعدّات هدف لكل دفعة. رح تنعبّى تلقائياً عند بدء التمرين.',
+    'target': 'الهدف',
+    'reminders': 'تذكير التمرين',
+    'remindersHint':
+        'إشعار يومي بأيام تمرينك. على بعض الأجهزة (مثل شاومي) لازم تسمح بالإشعارات والتشغيل التلقائي للتطبيق.',
+    'reminderTime': 'وقت التذكير',
+    'weeklySchedule': 'الجدول الأسبوعي',
+    'restDay': 'يوم راحة',
+    'progressChart': 'أعلى وزن عبر الوقت',
+    'noPlanYet': 'ما في أهداف محددة',
   },
 };

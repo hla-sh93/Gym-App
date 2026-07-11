@@ -29,13 +29,47 @@ class AppDatabase {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       p.join(dbPath, databaseName),
-      version: 1,
+      version: 2,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (db, version) async {
         await _createSchema(db);
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _migrateToV2(db);
+        }
+      },
+    );
+  }
+
+  /// v2: planned per-set targets (coach sheet) + reminder settings.
+  Future<void> _migrateToV2(Database db) async {
+    await db.execute('''
+      CREATE TABLE workout_day_exercise_sets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workout_day_exercise_id INTEGER NOT NULL,
+        set_number INTEGER NOT NULL,
+        target_weight REAL,
+        target_reps INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (workout_day_exercise_id)
+          REFERENCES workout_day_exercises(id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_planned_sets_assignment '
+      'ON workout_day_exercise_sets(workout_day_exercise_id, set_number)',
+    );
+    await db.execute(
+      'ALTER TABLE app_settings ADD COLUMN reminders_enabled INTEGER NOT NULL '
+      'DEFAULT 0',
+    );
+    await db.execute(
+      'ALTER TABLE app_settings ADD COLUMN reminder_hour INTEGER NOT NULL '
+      'DEFAULT 18',
     );
   }
 
@@ -49,6 +83,8 @@ class AppDatabase {
         weight_unit TEXT NOT NULL DEFAULT 'kg',
         onboarding_completed INTEGER NOT NULL DEFAULT 0,
         display_name TEXT,
+        reminders_enabled INTEGER NOT NULL DEFAULT 0,
+        reminder_hour INTEGER NOT NULL DEFAULT 18,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -108,6 +144,20 @@ class AppDatabase {
     ''');
 
     batch.execute('''
+      CREATE TABLE workout_day_exercise_sets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workout_day_exercise_id INTEGER NOT NULL,
+        set_number INTEGER NOT NULL,
+        target_weight REAL,
+        target_reps INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (workout_day_exercise_id)
+          REFERENCES workout_day_exercises(id) ON DELETE CASCADE
+      )
+    ''');
+
+    batch.execute('''
       CREATE TABLE workout_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         workout_day_id INTEGER NOT NULL,
@@ -160,6 +210,10 @@ class AppDatabase {
     );
     batch.execute(
       'CREATE INDEX idx_day_exercises_day ON workout_day_exercises(workout_day_id, sort_order)',
+    );
+    batch.execute(
+      'CREATE INDEX idx_planned_sets_assignment '
+      'ON workout_day_exercise_sets(workout_day_exercise_id, set_number)',
     );
     batch.execute(
       'CREATE INDEX idx_sessions_status ON workout_sessions(status, finished_at)',

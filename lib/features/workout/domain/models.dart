@@ -41,6 +41,8 @@ class AppSettings {
     required this.updatedAt,
     this.languageCode,
     this.displayName,
+    this.remindersEnabled = false,
+    this.reminderHour = 18,
   });
 
   final int id;
@@ -48,6 +50,8 @@ class AppSettings {
   final String weightUnit;
   final bool onboardingCompleted;
   final String? displayName;
+  final bool remindersEnabled;
+  final int reminderHour;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -60,6 +64,8 @@ class AppSettings {
       weightUnit: map['weight_unit'] as String? ?? 'kg',
       onboardingCompleted: (map['onboarding_completed'] as int? ?? 0) == 1,
       displayName: map['display_name'] as String?,
+      remindersEnabled: (map['reminders_enabled'] as int? ?? 0) == 1,
+      reminderHour: map['reminder_hour'] as int? ?? 18,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -337,10 +343,42 @@ class WorkoutDayWithExercises {
 }
 
 class ExerciseAssignment {
-  const ExerciseAssignment({required this.assignment, required this.exercise});
+  const ExerciseAssignment({
+    required this.assignment,
+    required this.exercise,
+    this.plannedSets = const <PlannedSet>[],
+  });
 
   final WorkoutDayExercise assignment;
   final Exercise exercise;
+
+  /// Coach-sheet target for each set (weight + reps), in set order.
+  final List<PlannedSet> plannedSets;
+}
+
+/// A planned target set (weight + reps) inside a program exercise.
+class PlannedSet {
+  const PlannedSet({
+    required this.setNumber,
+    this.targetWeight,
+    this.targetReps,
+    this.id,
+  });
+
+  final int? id;
+  final int setNumber;
+  final double? targetWeight;
+  final int? targetReps;
+
+  factory PlannedSet.fromMap(Map<String, Object?> map) {
+    final weight = map['target_weight'];
+    return PlannedSet(
+      id: map['id'] as int?,
+      setNumber: map['set_number'] as int,
+      targetWeight: weight == null ? null : (weight as num).toDouble(),
+      targetReps: map['target_reps'] as int?,
+    );
+  }
 }
 
 class ProgramSnapshot {

@@ -9,7 +9,14 @@ class AppColors {
   static const textSecondary = Color(0xFF6B7280);
   static const border = Color(0xFFE5E7EB);
   static const primary = Color(0xFF2563EB);
+  static const primaryDeep = Color(0xFF4F46E5);
   static const primarySoft = Color(0xFFEFF4FF);
+
+  static const heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: <Color>[primaryDeep, primary],
+  );
   static const success = Color(0xFF16A34A);
   static const successSoft = Color(0xFFF0FDF4);
   static const warning = Color(0xFFF59E0B);

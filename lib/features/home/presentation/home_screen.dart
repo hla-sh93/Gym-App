@@ -60,6 +60,7 @@ class HomeScreen extends StatelessWidget {
           if (program == null)
             EmptyState(
               message: context.l10n.t('createFirstProgram'),
+              illustration: true,
               action: FilledButton.icon(
                 onPressed: () => showCreateProgramSheet(context),
                 icon: const Icon(Icons.add),
@@ -69,7 +70,7 @@ class HomeScreen extends StatelessWidget {
           else if (today == null)
             EmptyState(
               message: context.l10n.t('noWorkoutToday'),
-              icon: Icons.calendar_today_outlined,
+              icon: Icons.self_improvement,
               action: OutlinedButton.icon(
                 onPressed: () => controller.selectTab(2),
                 icon: const Icon(Icons.fitness_center_outlined),
@@ -77,25 +78,49 @@ class HomeScreen extends StatelessWidget {
               ),
             )
           else
-            NotebookCard(
+            HeroCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.fitness_center,
+                        color: Colors.white70,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        weekDayName(today.day.weekDay, context.l10n.locale),
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     today.day.name,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
-                    '${weekDayName(today.day.weekDay, context.l10n.locale)} · ${today.exercises.length} ${context.l10n.t('exercises')}',
+                    '${today.exercises.length} ${context.l10n.t('exercises')}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Colors.white70,
                         ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                    ),
                     onPressed: () => _startWorkout(context, today.day.id),
                     icon: const Icon(Icons.play_arrow),
                     label: Text(context.l10n.t('startWorkout')),

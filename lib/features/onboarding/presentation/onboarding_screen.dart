@@ -37,9 +37,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: <Widget>[
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+                  Image.asset(
+                    'assets/images/empty_notebook.png',
+                    height: 180,
+                    errorBuilder: (_, __, ___) => const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     l10n.t('appTitle'),
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),

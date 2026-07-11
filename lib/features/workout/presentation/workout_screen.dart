@@ -123,20 +123,39 @@ class _ActiveWorkout extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          NotebookCard(
+          HeroCard(
             child: Row(
               children: <Widget>[
-                const Icon(Icons.timer_outlined, color: AppColors.primary),
-                const SizedBox(width: 10),
+                const Icon(Icons.timer_outlined, color: Colors.white, size: 26),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    context.l10n.t('workoutInProgress'),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        context.l10n.t('workoutInProgress'),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        context.l10n.date(snapshot.session.startedAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.white70,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(context.l10n.date(snapshot.session.startedAt)),
+                Text(
+                  '${snapshot.exercises.length} ${context.l10n.t('exercises')}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                      ),
+                ),
               ],
             ),
           ),

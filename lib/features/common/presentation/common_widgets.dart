@@ -61,6 +61,59 @@ class AppPage extends StatelessWidget {
   }
 }
 
+/// Gradient hero card used for the most important element on a page
+/// (today's workout, the active session header).
+class HeroCard extends StatelessWidget {
+  const HeroCard({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(20), child: child),
+    );
+  }
+}
+
+/// Circular icon badge with a soft tinted background.
+class IconBadge extends StatelessWidget {
+  const IconBadge({
+    required this.icon,
+    this.color = AppColors.primary,
+    this.size = 40,
+    super.key,
+  });
+
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: size * 0.55),
+    );
+  }
+}
+
 class NotebookCard extends StatelessWidget {
   const NotebookCard({
     required this.child,
@@ -121,6 +174,7 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.icon = Icons.note_alt_outlined,
     this.action,
+    this.illustration = false,
     super.key,
   });
 
@@ -128,14 +182,25 @@ class EmptyState extends StatelessWidget {
   final IconData icon;
   final Widget? action;
 
+  /// When true, shows the bundled notebook illustration instead of an icon.
+  final bool illustration;
+
   @override
   Widget build(BuildContext context) {
     return NotebookCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, color: AppColors.textSecondary, size: 32),
-          const SizedBox(height: 12),
+          if (illustration)
+            Image.asset(
+              'assets/images/empty_notebook.png',
+              height: 150,
+              errorBuilder: (_, __, ___) =>
+                  IconBadge(icon: icon, size: 56),
+            )
+          else
+            IconBadge(icon: icon, size: 56),
+          const SizedBox(height: 14),
           Text(
             message,
             textAlign: TextAlign.center,

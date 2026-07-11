@@ -102,6 +102,8 @@ class _BestCard extends StatelessWidget {
     return NotebookCard(
       child: Row(
         children: <Widget>[
+          const IconBadge(icon: Icons.emoji_events, color: AppColors.warning),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -122,6 +122,15 @@ class _BestCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                 ),
+                if (result != null) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    '${context.l10n.t('lastAchieved')}: ${context.l10n.date(result.date)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -166,6 +175,24 @@ class _ExerciseHistorySheetState extends State<_ExerciseHistorySheet> {
     setState(() {
       _future = GymScope.of(context).exerciseHistory(widget.exercise.id);
     });
+  }
+
+  /// Highlight label: "Highest weight · Last achieved: <date>".
+  String _bestLabel(
+    BuildContext context,
+    List<ExerciseHistoryEntry> history,
+    WorkoutSetLog bestSet,
+  ) {
+    final title = widget.exercise.type == ExerciseType.weighted
+        ? context.l10n.t('highestWeight')
+        : context.l10n.t('bestReps');
+    for (final entry in history) {
+      if (entry.sets.any((set) => set.id == bestSet.id)) {
+        final date = entry.session.finishedAt ?? entry.session.sessionDate;
+        return '$title · ${context.l10n.t('lastAchieved')}: ${context.l10n.date(date)}';
+      }
+    }
+    return title;
   }
 
   /// The single best completed set across all history entries.
@@ -249,7 +276,7 @@ class _ExerciseHistorySheetState extends State<_ExerciseHistorySheet> {
                       if (bestSet != null) ...<Widget>[
                         const SizedBox(height: 4),
                         InlineStat(
-                          label: context.l10n.t('best'),
+                          label: _bestLabel(context, history, bestSet),
                           value: exercise.type == ExerciseType.weighted
                               ? '${formatWeight(bestSet.weight ?? 0)}${weightUnitLabel(context)} x ${bestSet.reps ?? '-'}'
                               : '${bestSet.reps ?? '-'} ${context.l10n.t('reps')}',

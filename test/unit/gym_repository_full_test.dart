@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_gym_progress_notebook/core/errors/app_exception.dart';
 import 'package:personal_gym_progress_notebook/data/gym_repository.dart';
 import 'package:personal_gym_progress_notebook/features/workout/domain/models.dart';
@@ -335,101 +335,59 @@ void main() {
     });
   });
 
-  group('planned sets (coach sheet)', () {
-    test('addExercise stores planned target sets', () async {
-      final seeded = await seedProgram(db.repository);
-      await db.repository.addExercise(
-        workoutDayId: seeded.dayId,
-        name: 'Leg Press',
-        type: ExerciseType.weighted,
-        defaultSets: 3,
-        plannedSets: const <PlannedSetDraft>[
-          PlannedSetDraft(targetWeight: 10, targetReps: 12),
-          PlannedSetDraft(targetWeight: 15, targetReps: 10),
-          PlannedSetDraft(targetWeight: 20, targetReps: 8),
-        ],
-      );
-      final program = await db.repository.activeProgram();
-      final legPress = program!.days.single.exercises
-          .firstWhere((e) => e.exercise.name == 'Leg Press');
-      expect(legPress.plannedSets, hasLength(3));
-      expect(legPress.plannedSets[0].targetWeight, 10);
-      expect(legPress.plannedSets[1].targetWeight, 15);
-      expect(legPress.plannedSets[2].targetWeight, 20);
-      expect(legPress.plannedSets[2].targetReps, 8);
-      expect(legPress.assignment.defaultSets, 3);
-    });
-
-    test('starting a workout pre-fills sets from the plan', () async {
-      final seeded = await seedProgram(db.repository);
-      // Replace the seeded exercise with a planned one on the same day.
-      final program = await db.repository.activeProgram();
-      final assignment = program!.days.single.exercises.single;
-      await db.repository.updateExercise(
-        assignmentId: assignment.assignment.id,
-        exerciseId: seeded.exerciseId,
-        name: 'Squat',
-        type: ExerciseType.weighted,
-        defaultSets: 3,
-        plannedSets: const <PlannedSetDraft>[
-          PlannedSetDraft(targetWeight: 40, targetReps: 10),
-          PlannedSetDraft(targetWeight: 50, targetReps: 8),
-          PlannedSetDraft(targetWeight: 60, targetReps: 6),
-        ],
-      );
-
+  group('program stores structure only (spec 4.5)', () {
+    test('starting a workout creates EMPTY set rows - no program weights',
+        () async {
+      final seeded = await seedProgram(db.repository, defaultSets: 3);
       final session = await db.repository.startWorkout(seeded.dayId);
       final sets = session.exercises.single.sets;
       expect(sets, hasLength(3));
-      expect(sets[0].weight, 40);
-      expect(sets[0].reps, 10);
-      expect(sets[2].weight, 60);
-      expect(sets[2].reps, 6);
-      // Pre-filled but not yet completed.
+      expect(sets.every((s) => s.weight == null), isTrue,
+          reason: 'weights must never come from the program template');
+      expect(sets.every((s) => s.reps == null), isTrue,
+          reason: 'reps must never come from the program template');
       expect(sets.every((s) => !s.isCompleted), isTrue);
     });
 
-    test('updateExercise replaces the old plan', () async {
-      final seeded = await seedProgram(db.repository);
+    test('weights logged in a session do not change the program template',
+        () async {
+      final seeded = await seedProgram(db.repository, defaultSets: 2);
+      await completeSession(db.repository, seeded.dayId,
+          <({double? weight, int reps})>[
+            (weight: 40, reps: 12),
+            (weight: 45, reps: 10),
+          ]);
+
+      // The template still only knows the set COUNT.
       final program = await db.repository.activeProgram();
       final assignment = program!.days.single.exercises.single;
-      await db.repository.updateExercise(
-        assignmentId: assignment.assignment.id,
-        exerciseId: seeded.exerciseId,
-        name: 'Bench Press',
-        type: ExerciseType.weighted,
-        defaultSets: 2,
-        plannedSets: const <PlannedSetDraft>[
-          PlannedSetDraft(targetWeight: 30, targetReps: 12),
-          PlannedSetDraft(targetWeight: 35, targetReps: 10),
-        ],
-      );
-      final after = await db.repository.activeProgram();
-      final ex = after!.days.single.exercises.single;
-      expect(ex.plannedSets, hasLength(2));
-      expect(ex.plannedSets.map((p) => p.targetWeight), <double>[30, 35]);
+      expect(assignment.assignment.defaultSets, 2);
+
+      // And the next session starts empty again, with Previous available.
+      final next = await db.repository.startWorkout(seeded.dayId);
+      final sets = next.exercises.single.sets;
+      expect(sets.every((s) => s.weight == null && s.reps == null), isTrue);
+      expect(next.exercises.single.previous, isNotNull);
+      expect(next.exercises.single.previous!.sets.first.weight, 40);
+      expect(next.exercises.single.previous!.sets.last.weight, 45);
     });
 
-    test('reps-only planned sets ignore weight', () async {
+    test('highlight (best) carries the date it was achieved', () async {
       final seeded = await seedProgram(db.repository);
-      await db.repository.addExercise(
-        workoutDayId: seeded.dayId,
-        name: 'Pull-ups',
-        type: ExerciseType.repsOnly,
-        defaultSets: 2,
-        plannedSets: const <PlannedSetDraft>[
-          PlannedSetDraft(targetWeight: 99, targetReps: 12),
-          PlannedSetDraft(targetReps: 10),
-        ],
+      await completeSession(db.repository, seeded.dayId,
+          <({double? weight, int reps})>[(weight: 50, reps: 8)]);
+
+      final best = await db.repository.bestForExercise(
+        seeded.exerciseId,
+        ExerciseType.weighted,
       );
-      final program = await db.repository.activeProgram();
-      final pullups = program!.days.single.exercises
-          .firstWhere((e) => e.exercise.name == 'Pull-ups');
-      expect(pullups.plannedSets.every((p) => p.targetWeight == null), isTrue);
-      expect(pullups.plannedSets[0].targetReps, 12);
+      expect(best!.weight, 50);
+      expect(best.reps, 8);
+      final now = DateTime.now();
+      expect(best.date.difference(now).inMinutes.abs() < 5, isTrue,
+          reason: 'highlight date must reflect when the best was achieved');
     });
   });
-
   group('reminder settings', () {
     test('persist enabled flag and hour', () async {
       await db.repository.saveSettings(

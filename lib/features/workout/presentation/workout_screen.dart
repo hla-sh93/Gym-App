@@ -384,17 +384,24 @@ class _BestBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final best = this.best;
-    String value;
+    // Spec §12.2.1 highlight: highest weight × reps (or best reps) with the
+    // date it was last achieved, from completed sessions only.
+    final title = type == ExerciseType.weighted
+        ? context.l10n.t('highestWeight')
+        : context.l10n.t('bestReps');
     if (best == null) {
-      value = context.l10n.t('noPreviousData');
-    } else if (type == ExerciseType.weighted) {
-      value =
-          '${formatWeight(best.weight ?? 0)}${weightUnitLabel(context)} x ${best.reps ?? '-'}';
-    } else {
-      value = '${best.reps ?? '-'} ${context.l10n.t('reps')}';
+      return InlineStat(
+        label: title,
+        value: context.l10n.t('noPreviousData'),
+        color: AppColors.success,
+      );
     }
+    final value = type == ExerciseType.weighted
+        ? '${formatWeight(best.weight ?? 0)}${weightUnitLabel(context)} x ${best.reps ?? '-'}'
+        : '${best.reps ?? '-'} ${context.l10n.t('reps')}';
     return InlineStat(
-      label: context.l10n.t('best'),
+      label:
+          '$title · ${context.l10n.t('lastAchieved')}: ${context.l10n.date(best.date)}',
       value: value,
       color: AppColors.success,
     );

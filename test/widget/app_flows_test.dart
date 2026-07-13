@@ -243,7 +243,12 @@ void main() {
       expect(find.text('Previous'), findsOneWidget);
       expect(find.textContaining('40kg x 10'), findsWidgets);
       expect(find.textContaining('42.5kg x 8'), findsWidgets);
-      expect(find.text('Best'), findsWidgets);
+      // Highlight: highest weight with last-achieved date (spec 12.2.1).
+      expect(find.textContaining('Highest weight'), findsWidgets);
+      expect(find.textContaining('Last achieved'), findsWidgets);
+      // Today's set rows start EMPTY — the program supplies no weights.
+      final weightField = find.byType(TextField).first;
+      expect(tester.widget<TextField>(weightField).controller!.text, '');
     });
   });
 

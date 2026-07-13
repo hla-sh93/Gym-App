@@ -155,21 +155,9 @@ class _DayRow extends StatelessWidget {
     );
   }
 
+  // The schedule shows the planned STRUCTURE only (spec §4.5): weights are
+  // performance data and appear in history/highlights, never in the plan.
   String _planLabel(BuildContext context, ExerciseAssignment assignment) {
-    final sets = assignment.assignment.defaultSets;
-    final planned = assignment.plannedSets;
-    if (planned.isEmpty) {
-      return '$sets ${context.l10n.t('set')}';
-    }
-    if (assignment.exercise.type == ExerciseType.weighted) {
-      final weights = planned
-          .map((p) => p.targetWeight == null
-              ? '-'
-              : formatWeight(p.targetWeight!))
-          .join('/');
-      return '$sets ${context.l10n.t('set')} · $weights${weightUnitLabel(context)}';
-    }
-    final reps = planned.map((p) => p.targetReps?.toString() ?? '-').join('/');
-    return '$sets ${context.l10n.t('set')} · $reps ${context.l10n.t('reps')}';
+    return '${assignment.assignment.defaultSets} ${context.l10n.t('set')}';
   }
 }

@@ -265,6 +265,8 @@ class GymRepository {
     });
   }
 
+  // Program setup stores structure only (name, type, muscle, set COUNT).
+  // Actual weights/reps live exclusively in workout_set_logs (spec §4.5).
   Future<int> addExercise({
     required int workoutDayId,
     required String name,
@@ -272,7 +274,6 @@ class GymRepository {
     required int defaultSets,
     String? targetMuscle,
     String? muscleIconKey,
-    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     final db = await _appDatabase.database;
     return db.transaction<int>((txn) async {
@@ -291,19 +292,14 @@ class GymRepository {
         where: 'workout_day_id = ?',
         whereArgs: <Object?>[workoutDayId],
       );
-      final sets = plannedSets.isEmpty ? defaultSets : plannedSets.length;
-      final assignmentId = await txn.insert(
-        'workout_day_exercises',
-        <String, Object?>{
-          'workout_day_id': workoutDayId,
-          'exercise_id': exerciseId,
-          'default_sets': sets,
-          'sort_order': order,
-          'created_at': stamp,
-          'updated_at': stamp,
-        },
-      );
-      await _replacePlannedSets(txn, assignmentId, type, plannedSets, stamp);
+      await txn.insert('workout_day_exercises', <String, Object?>{
+        'workout_day_id': workoutDayId,
+        'exercise_id': exerciseId,
+        'default_sets': defaultSets,
+        'sort_order': order,
+        'created_at': stamp,
+        'updated_at': stamp,
+      });
       return exerciseId;
     });
   }
@@ -316,7 +312,6 @@ class GymRepository {
     required int defaultSets,
     String? targetMuscle,
     String? muscleIconKey,
-    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     final db = await _appDatabase.database;
     await db.transaction<void>((txn) async {
@@ -333,41 +328,13 @@ class GymRepository {
         where: 'id = ?',
         whereArgs: <Object?>[exerciseId],
       );
-      final sets = plannedSets.isEmpty ? defaultSets : plannedSets.length;
       await txn.update(
         'workout_day_exercises',
-        <String, Object?>{'default_sets': sets, 'updated_at': stamp},
+        <String, Object?>{'default_sets': defaultSets, 'updated_at': stamp},
         where: 'id = ?',
         whereArgs: <Object?>[assignmentId],
       );
-      await _replacePlannedSets(txn, assignmentId, type, plannedSets, stamp);
     });
-  }
-
-  /// Rewrites the planned target sets for an assignment.
-  Future<void> _replacePlannedSets(
-    DatabaseExecutor txn,
-    int assignmentId,
-    ExerciseType type,
-    List<PlannedSetDraft> plannedSets,
-    String stamp,
-  ) async {
-    await txn.delete(
-      'workout_day_exercise_sets',
-      where: 'workout_day_exercise_id = ?',
-      whereArgs: <Object?>[assignmentId],
-    );
-    for (var index = 0; index < plannedSets.length; index += 1) {
-      final draft = plannedSets[index];
-      await txn.insert('workout_day_exercise_sets', <String, Object?>{
-        'workout_day_exercise_id': assignmentId,
-        'set_number': index + 1,
-        'target_weight': type == ExerciseType.weighted ? draft.targetWeight : null,
-        'target_reps': draft.targetReps,
-        'created_at': stamp,
-        'updated_at': stamp,
-      });
-    }
   }
 
   Future<void> deleteExerciseAssignment({
@@ -451,21 +418,15 @@ class GymRepository {
           'created_at': stamp,
           'updated_at': stamp,
         });
-        // Pre-fill each set from the coach-sheet plan when present, so the
-        // user opens the workout with target weight/reps ready to adjust.
-        final planned = assignment.plannedSets;
-        final setCount = planned.isNotEmpty
-            ? planned.length
-            : assignment.assignment.defaultSets;
-        for (var setIndex = 0; setIndex < setCount; setIndex += 1) {
-          final plan = setIndex < planned.length ? planned[setIndex] : null;
+        // Spec §10.6: create EMPTY set rows from the planned count. The
+        // program never provides weights — the user logs what they actually
+        // lift, and "Previous" shows last session's numbers for reference.
+        for (var setIndex = 0;
+            setIndex < assignment.assignment.defaultSets;
+            setIndex += 1) {
           await txn.insert('workout_set_logs', <String, Object?>{
             'workout_exercise_log_id': logId,
             'set_number': setIndex + 1,
-            'weight': assignment.exercise.type == ExerciseType.weighted
-                ? plan?.targetWeight
-                : null,
-            'reps': plan?.targetReps,
             'is_completed': 0,
             'created_at': stamp,
             'updated_at': stamp,
@@ -947,17 +908,10 @@ class GymRepository {
       if (exerciseRows.isEmpty) {
         continue;
       }
-      final plannedRows = await executor.query(
-        'workout_day_exercise_sets',
-        where: 'workout_day_exercise_id = ?',
-        whereArgs: <Object?>[assignment.id],
-        orderBy: 'set_number ASC, id ASC',
-      );
       assignments.add(
         ExerciseAssignment(
           assignment: assignment,
           exercise: Exercise.fromMap(exerciseRows.single),
-          plannedSets: plannedRows.map(PlannedSet.fromMap).toList(),
         ),
       );
     }
@@ -1055,12 +1009,4 @@ class WorkoutDayDraft {
 
   final int weekDay;
   final String name;
-}
-
-/// A target set (weight + reps) entered while planning an exercise.
-class PlannedSetDraft {
-  const PlannedSetDraft({this.targetWeight, this.targetReps});
-
-  final double? targetWeight;
-  final int? targetReps;
 }

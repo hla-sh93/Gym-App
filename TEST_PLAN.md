@@ -63,10 +63,10 @@ fresh file per test, so schema, foreign keys, and SQL are exercised — not mock
 | R35 | In-progress banner: continue/finish-later/discard | widget `in-progress banner supports finish later` |
 | R36 | Negative weights / decimal reps rejected | `input_validation_test`, `progress_calculator` validation |
 | R37 | Decimal weight incl. trailing separator | `input_validation` trailing-separator test |
-| R38 | Plan target weight+reps per set (coach sheet) | `planned sets > addExercise stores planned target sets` |
-| R39 | Workout pre-fills sets from the plan | `planned sets > starting a workout pre-fills sets from the plan` |
-| R40 | Editing an exercise replaces its plan | `planned sets > updateExercise replaces the old plan` |
-| R41 | Reps-only plans ignore weight | `planned sets > reps-only planned sets ignore weight` |
+| R38 | Program stores structure only — NO weights (spec §4.5) | `program stores structure only > starting a workout creates EMPTY set rows` |
+| R39 | Session weights never alter the program template | `program stores structure only > weights logged in a session do not change the program template` |
+| R40 | Highlight = highest weight × reps + last-achieved date (spec §12.2.1) | `program stores structure only > highlight (best) carries the date`, widget IT-004 |
+| R41 | Exercise form plans set COUNT only, no weight fields | exercise form UI (structure-only stepper) + widget `exercise form switches type` |
 | R42 | Reminder enable/hour persist | `reminder settings > persist enabled flag and hour` |
 | R43 | Weekly schedule view (Sun–Sat, rest days) | `WeeklyScheduleScreen` (manual; presentation of existing data) |
 | R44 | DB migration v1→v2 preserves data | `onUpgrade` adds tables/columns; fresh installs use v2 schema |

@@ -196,7 +196,6 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
-    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -208,7 +207,6 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
-      plannedSets: plannedSets,
     );
     await _refresh();
   }
@@ -220,7 +218,6 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
-    List<PlannedSetDraft> plannedSets = const <PlannedSetDraft>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -233,7 +230,6 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
-      plannedSets: plannedSets,
     );
     await _refresh();
   }

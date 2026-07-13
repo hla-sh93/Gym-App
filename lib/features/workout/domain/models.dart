@@ -343,42 +343,10 @@ class WorkoutDayWithExercises {
 }
 
 class ExerciseAssignment {
-  const ExerciseAssignment({
-    required this.assignment,
-    required this.exercise,
-    this.plannedSets = const <PlannedSet>[],
-  });
+  const ExerciseAssignment({required this.assignment, required this.exercise});
 
   final WorkoutDayExercise assignment;
   final Exercise exercise;
-
-  /// Coach-sheet target for each set (weight + reps), in set order.
-  final List<PlannedSet> plannedSets;
-}
-
-/// A planned target set (weight + reps) inside a program exercise.
-class PlannedSet {
-  const PlannedSet({
-    required this.setNumber,
-    this.targetWeight,
-    this.targetReps,
-    this.id,
-  });
-
-  final int? id;
-  final int setNumber;
-  final double? targetWeight;
-  final int? targetReps;
-
-  factory PlannedSet.fromMap(Map<String, Object?> map) {
-    final weight = map['target_weight'];
-    return PlannedSet(
-      id: map['id'] as int?,
-      setNumber: map['set_number'] as int,
-      targetWeight: weight == null ? null : (weight as num).toDouble(),
-      targetReps: map['target_reps'] as int?,
-    );
-  }
 }
 
 class ProgramSnapshot {

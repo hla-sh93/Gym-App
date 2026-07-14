@@ -794,6 +794,78 @@ class GymRepository {
     return ProgressOverview(bests: bests, recentSessions: recent);
   }
 
+  /// Completed sessions within [start, end) with everything that was played,
+  /// newest first. Backs the monthly report.
+  Future<List<SessionReport>> sessionsBetween(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _appDatabase.database;
+    final sessionRows = await db.rawQuery(
+      '''
+      SELECT s.*, COALESCE(d.name, 'Workout') AS day_name
+      FROM workout_sessions s
+      LEFT JOIN workout_days d ON d.id = s.workout_day_id
+      WHERE s.status = ?
+        AND s.session_date >= ?
+        AND s.session_date < ?
+      ORDER BY s.session_date DESC, s.id DESC
+    ''',
+      <Object?>[
+        WorkoutSessionStatus.completed.dbValue,
+        start.toIso8601String(),
+        end.toIso8601String(),
+      ],
+    );
+
+    final reports = <SessionReport>[];
+    for (final row in sessionRows) {
+      final session = WorkoutSession.fromMap(row);
+      final logRows = await db.query(
+        'workout_exercise_logs',
+        where: 'workout_session_id = ?',
+        whereArgs: <Object?>[session.id],
+        orderBy: 'sort_order ASC, id ASC',
+      );
+      final exercises = <ExerciseReport>[];
+      for (final logRow in logRows) {
+        final log = WorkoutExerciseLog.fromMap(logRow);
+        final exerciseRows = await db.query(
+          'exercises',
+          where: 'id = ?',
+          whereArgs: <Object?>[log.exerciseId],
+          limit: 1,
+        );
+        if (exerciseRows.isEmpty) {
+          continue;
+        }
+        final sets = await db.query(
+          'workout_set_logs',
+          where: 'workout_exercise_log_id = ? AND is_completed = 1',
+          whereArgs: <Object?>[log.id],
+          orderBy: 'set_number ASC, id ASC',
+        );
+        if (sets.isEmpty) {
+          continue;
+        }
+        exercises.add(
+          ExerciseReport(
+            exercise: Exercise.fromMap(exerciseRows.single),
+            sets: sets.map(WorkoutSetLog.fromMap).toList(),
+          ),
+        );
+      }
+      reports.add(
+        SessionReport(
+          session: session,
+          dayName: row['day_name'] as String,
+          exercises: exercises,
+        ),
+      );
+    }
+    return reports;
+  }
+
   Future<List<ExerciseHistoryEntry>> exerciseHistory(int exerciseId) async {
     final db = await _appDatabase.database;
     final sessionRows = await db.rawQuery(

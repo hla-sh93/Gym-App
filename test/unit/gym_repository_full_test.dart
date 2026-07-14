@@ -388,6 +388,39 @@ void main() {
           reason: 'highlight date must reflect when the best was achieved');
     });
   });
+  group('monthly report', () {
+    test('sessionsBetween returns completed workouts with played sets',
+        () async {
+      final seeded = await seedProgram(db.repository);
+      await completeSession(db.repository, seeded.dayId,
+          <({double? weight, int reps})>[(weight: 40, reps: 12)]);
+      await completeSession(db.repository, seeded.dayId,
+          <({double? weight, int reps})>[(weight: 45, reps: 10)]);
+      // A discarded session must not appear in the report.
+      final cancelled = await db.repository.startWorkout(seeded.dayId);
+      await db.repository.discardSession(cancelled.session.id);
+
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month);
+      final end = DateTime(now.year, now.month + 1);
+      final reports = await db.repository.sessionsBetween(start, end);
+
+      expect(reports, hasLength(2));
+      expect(reports.first.dayName, 'Push');
+      // Newest first; each report carries the actual played sets.
+      expect(reports.first.exercises.single.sets.single.weight, 45);
+      expect(reports.last.exercises.single.sets.single.weight, 40);
+      expect(reports.first.completedSetCount, 1);
+
+      // A different month is empty.
+      final lastMonth = await db.repository.sessionsBetween(
+        DateTime(now.year, now.month - 1),
+        start,
+      );
+      expect(lastMonth, isEmpty);
+    });
+  });
+
   group('reminder settings', () {
     test('persist enabled flag and hour', () async {
       await db.repository.saveSettings(

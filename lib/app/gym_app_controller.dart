@@ -25,6 +25,9 @@ class GymAppController extends ChangeNotifier {
   );
   WorkoutSummary? latestSummary;
 
+  /// Detailed end-of-day report of the last finished workout.
+  SessionReport? lastWorkoutReport;
+
   /// Session id whose Home banner was dismissed with "Finish later".
   int? snoozedSessionId;
 
@@ -291,11 +294,26 @@ class GymAppController extends ChangeNotifier {
   }
 
   Future<WorkoutSummary> finishWorkout() async {
-    final sessionId = activeSession?.session.id;
-    if (sessionId == null) {
+    final active = activeSession;
+    final sessionId = active?.session.id;
+    if (active == null || sessionId == null) {
       throw const AppException('sessionNotFound');
     }
     final summary = await repository.finishSession(sessionId);
+    // End-of-day report: what was actually played, from the in-memory
+    // snapshot (completed sets only), available synchronously to the UI.
+    lastWorkoutReport = SessionReport(
+      session: active.session,
+      dayName: active.day.name,
+      exercises: <ExerciseReport>[
+        for (final log in active.exercises)
+          if (log.sets.any((set) => set.isCompleted))
+            ExerciseReport(
+              exercise: log.exercise,
+              sets: log.sets.where((set) => set.isCompleted).toList(),
+            ),
+      ],
+    );
     latestSummary = summary;
     await _refresh(notify: false);
     selectedTab = 3;

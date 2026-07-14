@@ -171,10 +171,12 @@ class _ActiveWorkout extends StatelessWidget {
               ),
             )
           else
+            // Level 1: today's exercise list. Tapping an exercise opens its
+            // own logging page where each set's weight/reps are recorded.
             for (final exerciseLog in snapshot.exercises)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _ActiveExerciseCard(exerciseLog: exerciseLog),
+                child: _ExerciseListTile(exerciseLog: exerciseLog),
               ),
         ],
       ),
@@ -183,41 +185,14 @@ class _ActiveWorkout extends StatelessWidget {
 
   Future<void> _finish(BuildContext context) async {
     try {
-      final summary = await GymScope.of(context).finishWorkout();
+      final controller = GymScope.of(context);
+      await controller.finishWorkout();
       if (!context.mounted) {
         return;
       }
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.t('workoutSummary')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              InlineStat(
-                label: context.l10n.t('exercises'),
-                value: summary.exerciseCount.toString(),
-              ),
-              const SizedBox(height: 8),
-              InlineStat(
-                label: context.l10n.t('completedSets'),
-                value: summary.completedSetCount.toString(),
-                color: AppColors.success,
-              ),
-              const SizedBox(height: 8),
-              InlineStat(
-                label: context.l10n.t('newBests'),
-                value: summary.newBestCount.toString(),
-                color: AppColors.warning,
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.t('done')),
-            ),
-          ],
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const WorkoutSummaryScreen(),
         ),
       );
     } catch (error) {
@@ -225,6 +200,268 @@ class _ActiveWorkout extends StatelessWidget {
         showAppError(context, error);
       }
     }
+  }
+}
+
+/// One row in the active-workout exercise list, with completion progress.
+class _ExerciseListTile extends StatelessWidget {
+  const _ExerciseListTile({required this.exerciseLog});
+
+  final ActiveExerciseLog exerciseLog;
+
+  @override
+  Widget build(BuildContext context) {
+    final exercise = exerciseLog.exercise;
+    final done = exerciseLog.sets.where((set) => set.isCompleted).length;
+    final total = exerciseLog.sets.length;
+    final allDone = total > 0 && done == total;
+    return NotebookCard(
+      padding: const EdgeInsets.all(14),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ExerciseLogScreen(logId: exerciseLog.log.id),
+          ),
+        );
+      },
+      child: Row(
+        children: <Widget>[
+          IconBadge(
+            icon: allDone ? Icons.check : Icons.fitness_center,
+            color: allDone ? AppColors.success : AppColors.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  exercise.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$total ${context.l10n.t('set')} · $done/$total ${context.l10n.t('completed')}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: allDone
+                            ? AppColors.success
+                            : AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          if (exercise.targetMuscle != null) ...<Widget>[
+            Chip(label: Text(context.l10n.t(exercise.targetMuscle!))),
+            const SizedBox(width: 4),
+          ],
+          Icon(
+            Directionality.of(context) == TextDirection.rtl
+                ? Icons.chevron_left
+                : Icons.chevron_right,
+            color: AppColors.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Level 2: the logging page for one exercise — previous session, highlight,
+/// and one weight/reps row per set.
+class ExerciseLogScreen extends StatelessWidget {
+  const ExerciseLogScreen({required this.logId, super.key});
+
+  final int logId;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = GymScope.of(context);
+    final session = controller.activeSession;
+    ActiveExerciseLog? exerciseLog;
+    if (session != null) {
+      for (final log in session.exercises) {
+        if (log.log.id == logId) {
+          exerciseLog = log;
+          break;
+        }
+      }
+    }
+    if (exerciseLog == null) {
+      // Session finished/discarded elsewhere: leave this page.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      });
+      return const Scaffold(body: SizedBox.shrink());
+    }
+    final done = exerciseLog.sets.where((set) => set.isCompleted).length;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(exerciseLog.exercise.name),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.check),
+            label: Text(
+              '${context.l10n.t('done')} ($done/${exerciseLog.sets.length})',
+            ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: <Widget>[
+                _ActiveExerciseCard(exerciseLog: exerciseLog),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// End-of-day report: everything played in the finished workout.
+class WorkoutSummaryScreen extends StatelessWidget {
+  const WorkoutSummaryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = GymScope.of(context);
+    final summary = controller.latestSummary;
+    final report = controller.lastWorkoutReport;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(context.l10n.t('workoutSummary')),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.t('done')),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: <Widget>[
+                if (report != null)
+                  HeroCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          report.dayName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.l10n.date(report.session.sessionDate),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (summary != null) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: InlineStat(
+                          label: context.l10n.t('exercises'),
+                          value: summary.exerciseCount.toString(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InlineStat(
+                          label: context.l10n.t('completedSets'),
+                          value: summary.completedSetCount.toString(),
+                          color: AppColors.success,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InlineStat(
+                          label: context.l10n.t('newBests'),
+                          value: summary.newBestCount.toString(),
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (report != null)
+                  for (final exercise in report.exercises)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: NotebookCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              exercise.exercise.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 6),
+                            for (final set in exercise.sets)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Text(
+                                  formatSetLine(
+                                    context,
+                                    set,
+                                    exercise.exercise.type,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

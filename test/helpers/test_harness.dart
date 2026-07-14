@@ -136,6 +136,23 @@ Future<void> pressIconButton(WidgetTester tester, Finder finder) async {
   });
 }
 
+/// Invokes the onTap of the nearest [InkWell] ancestor of [finder] and pumps
+/// through the resulting route transition.
+Future<void> tapTile(WidgetTester tester, Finder finder) async {
+  final element = finder.evaluate().first;
+  VoidCallback? onTap;
+  element.visitAncestorElements((ancestor) {
+    if (ancestor.widget is InkWell) {
+      onTap = (ancestor.widget as InkWell).onTap;
+      return false;
+    }
+    return true;
+  });
+  onTap!();
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+}
+
 /// Gives the test a tall, narrow phone-like surface so full pages fit without
 /// scrolling — keeps every control on-screen and tappable in widget tests.
 void useTallSurface(WidgetTester tester) {

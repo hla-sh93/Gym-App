@@ -461,6 +461,30 @@ class ExerciseHistoryEntry {
   final List<WorkoutSetLog> sets;
 }
 
+/// One exercise inside a workout report: what was actually played.
+class ExerciseReport {
+  const ExerciseReport({required this.exercise, required this.sets});
+
+  final Exercise exercise;
+  final List<WorkoutSetLog> sets;
+}
+
+/// A full report of one workout session (end-of-day / monthly reports).
+class SessionReport {
+  const SessionReport({
+    required this.session,
+    required this.dayName,
+    required this.exercises,
+  });
+
+  final WorkoutSession session;
+  final String dayName;
+  final List<ExerciseReport> exercises;
+
+  int get completedSetCount =>
+      exercises.fold(0, (sum, e) => sum + e.sets.length);
+}
+
 DateTime? _nullableDate(Object? value) {
   if (value == null) {
     return null;

@@ -39,8 +39,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: <Widget>[
                   const SizedBox(height: 24),
                   Image.asset(
-                    'assets/images/empty_notebook.png',
-                    height: 180,
+                    'assets/images/logo_k.png',
+                    height: 150,
                     errorBuilder: (_, __, ___) => const SizedBox(height: 24),
                   ),
                   const SizedBox(height: 16),

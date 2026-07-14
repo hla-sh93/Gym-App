@@ -9,6 +9,7 @@ import '../../common/presentation/common_widgets.dart';
 import '../../workout/domain/models.dart';
 import '../../workout/presentation/workout_screen.dart'
     show decimalWeightFormatter;
+import 'monthly_report_screen.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({super.key});
@@ -20,6 +21,17 @@ class ProgressScreen extends StatelessWidget {
     final isEmpty = progress.bests.isEmpty && progress.recentSessions.isEmpty;
     return AppPage(
       title: context.l10n.t('progress'),
+      actions: <Widget>[
+        IconButton(
+          tooltip: context.l10n.t('monthlyReport'),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const MonthlyReportScreen(),
+            ),
+          ),
+          icon: const Icon(Icons.calendar_month_outlined),
+        ),
+      ],
       child: isEmpty
           ? EmptyState(
               message: context.l10n.t('noProgress'),
@@ -177,7 +189,7 @@ class _ExerciseHistorySheetState extends State<_ExerciseHistorySheet> {
     });
   }
 
-  /// Highlight label: "Highest weight · Last achieved: <date>".
+  /// Highlight label: "Highest weight · Last achieved: `date`".
   String _bestLabel(
     BuildContext context,
     List<ExerciseHistoryEntry> history,

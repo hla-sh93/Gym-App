@@ -28,6 +28,10 @@ class AppLocalizations {
     return DateFormat.yMMMd(locale.languageCode).format(value);
   }
 
+  String month(DateTime value) {
+    return DateFormat.yMMMM(locale.languageCode).format(value);
+  }
+
   String number(num value) {
     return NumberFormat.decimalPattern(locale.languageCode).format(value);
   }
@@ -177,6 +181,9 @@ const Map<String, Map<String, String>> _values = <String, Map<String, String>>{
     'hi': 'Hi',
     'setsCountHint':
         'Only the number of sets is planned here. You record the actual weight and reps during the workout.',
+    'monthlyReport': 'Monthly report',
+    'noWorkoutsThisMonth': 'No workouts this month.',
+    'workoutsCount': 'Workouts',
     'highestWeight': 'Highest weight',
     'bestReps': 'Best reps',
     'lastAchieved': 'Last achieved',
@@ -306,6 +313,9 @@ const Map<String, Map<String, String>> _values = <String, Map<String, String>>{
     'hi': 'أهلاً',
     'setsCountHint':
         'هون بتحدد عدد الدفعات فقط. الوزن والعدّات الفعلية بتسجّلها أثناء التمرين.',
+    'monthlyReport': 'التقرير الشهري',
+    'noWorkoutsThisMonth': 'لا يوجد تمارين هذا الشهر.',
+    'workoutsCount': 'عدد التمارين',
     'highestWeight': 'أعلى وزن',
     'bestReps': 'أفضل عدّات',
     'lastAchieved': 'آخر مرة',

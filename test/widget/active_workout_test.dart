@@ -58,11 +58,11 @@ void main() {
     });
     await tester.pump();
 
-    // The active workout page must show the exercise card with its sets.
+    // The active workout page must list the exercise with its set progress.
     expect(find.text('Push Day'), findsWidgets);
     expect(find.text('Bench Press'), findsWidgets);
     expect(find.text('Finish Workout'), findsOneWidget);
-    expect(find.textContaining('Set 1'), findsWidgets);
+    expect(find.textContaining('0/3'), findsWidgets);
 
     await tester.runAsync(() async {
       final path = p.join(

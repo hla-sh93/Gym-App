@@ -944,14 +944,7 @@ class _NumberStepperField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        SizedBox(
-          width: 48,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: onDecrement,
-            child: Text(decrementLabel),
-          ),
-        ),
+        _StepperButton(label: decrementLabel, onPressed: onDecrement),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(
@@ -964,15 +957,37 @@ class _NumberStepperField extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        SizedBox(
-          width: 48,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: onIncrement,
-            child: Text(incrementLabel),
+        _StepperButton(label: incrementLabel, onPressed: onIncrement),
+      ],
+    );
+  }
+}
+
+/// Compact quick-increment button ("-2.5" / "+2.5" / "-" / "+"). Zero padding
+/// and a single line so the label never wraps into unreadable columns.
+class _StepperButton extends StatelessWidget {
+  const _StepperButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 54,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(54, 48),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
           ),
         ),
-      ],
+        child: Text(label, maxLines: 1, softWrap: false),
+      ),
     );
   }
 }

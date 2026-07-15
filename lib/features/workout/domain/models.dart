@@ -343,10 +343,18 @@ class WorkoutDayWithExercises {
 }
 
 class ExerciseAssignment {
-  const ExerciseAssignment({required this.assignment, required this.exercise});
+  const ExerciseAssignment({
+    required this.assignment,
+    required this.exercise,
+    this.targetReps = const <int?>[],
+  });
 
   final WorkoutDayExercise assignment;
   final Exercise exercise;
+
+  /// Planned target reps per set (index = set number - 1). The program never
+  /// plans weights (WORKOUT_FLOW.md §1).
+  final List<int?> targetReps;
 }
 
 class ProgramSnapshot {
@@ -395,6 +403,7 @@ class ActiveExerciseLog {
     required this.sets,
     this.previous,
     this.best,
+    this.targetReps = const <int?>[],
   });
 
   final WorkoutExerciseLog log;
@@ -402,6 +411,12 @@ class ActiveExerciseLog {
   final List<WorkoutSetLog> sets;
   final PreviousSessionResult? previous;
   final BestResult? best;
+
+  /// Program targets for the "Target: X reps" labels (index = set - 1).
+  final List<int?> targetReps;
+
+  /// Done = at least one set, all completed (WORKOUT_FLOW.md §3.1).
+  bool get isDone => sets.isNotEmpty && sets.every((set) => set.isCompleted);
 }
 
 class ActiveSessionSnapshot {

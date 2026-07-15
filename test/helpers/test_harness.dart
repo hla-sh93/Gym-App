@@ -36,7 +36,8 @@ class TestDb {
   }
 }
 
-/// Seeds a program with one workout day and one exercise.
+/// Seeds a program with one workout day and one exercise (optionally with
+/// per-set target reps — never target weights, per WORKOUT_FLOW.md §1).
 Future<({int programId, int dayId, int exerciseId})> seedProgram(
   GymRepository repository, {
   String programName = 'Test Program',
@@ -45,6 +46,7 @@ Future<({int programId, int dayId, int exerciseId})> seedProgram(
   String exerciseName = 'Bench Press',
   ExerciseType type = ExerciseType.weighted,
   int defaultSets = 2,
+  List<int?> targetReps = const <int?>[],
 }) async {
   await repository.createProgram(
     name: programName,
@@ -57,6 +59,7 @@ Future<({int programId, int dayId, int exerciseId})> seedProgram(
     name: exerciseName,
     type: type,
     defaultSets: defaultSets,
+    targetReps: targetReps,
   );
   return (
     programId: snapshot.program.id,
@@ -165,14 +168,23 @@ void useTallSurface(WidgetTester tester) {
 }
 
 /// Enters text into a field (fake-async, so the controller updates and
-/// onChanged fires) and pumps a frame.
+/// onChanged fires) and pumps a frame. Freshly-built fields occasionally
+/// miss the first keyboard attach in tests, so verify and retry.
 Future<void> typeText(
   WidgetTester tester,
   Finder finder,
   String text,
 ) async {
-  await tester.enterText(finder, text);
-  await tester.pump();
+  for (var attempt = 0; attempt < 3; attempt += 1) {
+    await tester.showKeyboard(finder);
+    await tester.pump();
+    await tester.enterText(finder, text);
+    await tester.pump();
+    if (tester.widget<TextField>(finder).controller!.text == text) {
+      return;
+    }
+  }
+  fail('typeText: field did not accept "$text" after 3 attempts');
 }
 
 /// Invokes a [Checkbox]'s onChanged callback directly and settles the DB I/O.

@@ -199,6 +199,7 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
+    List<int?> targetReps = const <int?>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -210,6 +211,7 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
+      targetReps: targetReps,
     );
     await _refresh();
   }
@@ -221,6 +223,7 @@ class GymAppController extends ChangeNotifier {
     required ExerciseType type,
     required int defaultSets,
     String? targetMuscle,
+    List<int?> targetReps = const <int?>[],
   }) async {
     if (!InputValidation.requiredText(name, maxLength: 80)) {
       throw const AppException('nameRequired');
@@ -233,8 +236,54 @@ class GymAppController extends ChangeNotifier {
       defaultSets: InputValidation.clampDefaultSets(defaultSets),
       targetMuscle: targetMuscle,
       muscleIconKey: targetMuscle,
+      targetReps: targetReps,
     );
     await _refresh();
+  }
+
+  /// WORKOUT_FLOW.md §3.3 — Complete Exercise:
+  /// valid sets become completed, empty sets are deleted (renumbered),
+  /// and with no valid set at all a localized error is thrown.
+  Future<void> completeExercise(int logId) async {
+    // Typed values are saved silently without refreshing the in-memory
+    // snapshot, so ALWAYS validate against fresh database state.
+    final session = await repository.inProgressSession();
+    if (session == null) {
+      throw const AppException('sessionNotFound');
+    }
+    ActiveExerciseLog? log;
+    for (final candidate in session.exercises) {
+      if (candidate.log.id == logId) {
+        log = candidate;
+        break;
+      }
+    }
+    if (log == null) {
+      throw const AppException('sessionNotFound');
+    }
+
+    bool isValid(WorkoutSetLog set) {
+      if (set.reps == null) {
+        return false;
+      }
+      return log!.exercise.type == ExerciseType.repsOnly ||
+          set.weight != null;
+    }
+
+    if (!log.sets.any(isValid)) {
+      throw const AppException('emptyExerciseWarning');
+    }
+    for (final set in log.sets) {
+      if (isValid(set)) {
+        if (!set.isCompleted) {
+          await repository.updateSet(set.copyWith(isCompleted: true));
+        }
+      } else {
+        await repository.deleteSet(set.id, set.workoutExerciseLogId);
+      }
+    }
+    activeSession = await repository.inProgressSession();
+    notifyListeners();
   }
 
   Future<void> deleteExercise({

@@ -155,6 +155,40 @@ void main() {
     expect(controller.progress.bests, hasLength(1));
   });
 
+  test('R3: completeExercise marks valid sets done and deletes empty ones',
+      () async {
+    final seeded = await seedProgram(db.repository, defaultSets: 3);
+    await controller.startWorkout(seeded.dayId);
+    final log = controller.activeSession!.exercises.single;
+    // Fill only the first set; leave sets 2 and 3 empty.
+    await controller.updateSetSilently(
+      log.sets.first.copyWith(weight: 40, reps: 12),
+    );
+
+    await controller.completeExercise(log.log.id);
+
+    final after = controller.activeSession!.exercises.single;
+    expect(after.sets, hasLength(1));
+    expect(after.sets.single.isCompleted, isTrue);
+    expect(after.sets.single.setNumber, 1);
+  });
+
+  test('R3b: completeExercise with no valid sets throws localized error',
+      () async {
+    final seeded = await seedProgram(db.repository, defaultSets: 2);
+    await controller.startWorkout(seeded.dayId);
+    final log = controller.activeSession!.exercises.single;
+    await expectLater(
+      controller.completeExercise(log.log.id),
+      throwsA(isA<AppException>()
+          .having((e) => e.l10nKey, 'l10nKey', 'emptyExerciseWarning')),
+    );
+    // Nothing was deleted or completed.
+    final after = controller.activeSession!.exercises.single;
+    expect(after.sets, hasLength(2));
+    expect(after.sets.every((s) => !s.isCompleted), isTrue);
+  });
+
   test('finishWorkout without an active session throws', () async {
     await expectLater(
       controller.finishWorkout(),

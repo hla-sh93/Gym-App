@@ -106,61 +106,124 @@ class _WorkoutPicker extends StatelessWidget {
   }
 }
 
-class _ActiveWorkout extends StatelessWidget {
+/// The active-workout wizard (WORKOUT_FLOW.md §2): header with progress,
+/// the CURRENT exercise open for logging, the rest minimized under Up Next.
+/// Complete Exercise is the primary action; Finish Workout only becomes
+/// primary after every exercise is done.
+class _ActiveWorkout extends StatefulWidget {
   const _ActiveWorkout({required this.snapshot});
 
   final ActiveSessionSnapshot snapshot;
 
   @override
+  State<_ActiveWorkout> createState() => _ActiveWorkoutState();
+}
+
+class _ActiveWorkoutState extends State<_ActiveWorkout> {
+  /// Exercise the user explicitly opened from the list (overrides the
+  /// default "first not-done" selection). Reset after Complete Exercise.
+  int? _manualLogId;
+
+  ActiveExerciseLog? get _current {
+    final exercises = widget.snapshot.exercises;
+    if (_manualLogId != null) {
+      for (final log in exercises) {
+        if (log.log.id == _manualLogId) {
+          return log;
+        }
+      }
+    }
+    for (final log in exercises) {
+      if (!log.isDone) {
+        return log;
+      }
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
+    final exercises = snapshot.exercises;
+    final doneCount = exercises.where((log) => log.isDone).length;
+    final total = exercises.length;
+    final current = _current;
+    final allDone = total > 0 && current == null;
+    final currentNumber = current == null
+        ? total
+        : exercises.indexWhere((log) => log.log.id == current.log.id) + 1;
+    final progressLabel = context.l10n
+        .t('exerciseOf')
+        .replaceFirst('%1', '$currentNumber')
+        .replaceFirst('%2', '$total');
+
     return AppPage(
       title: snapshot.day.name,
-      bottom: FilledButton.icon(
-        onPressed: () => _finish(context),
-        icon: const Icon(Icons.flag_outlined),
-        label: Text(context.l10n.t('finishWorkout')),
-      ),
+      bottom: allDone
+          ? FilledButton.icon(
+              onPressed: () => _finish(context),
+              icon: const Icon(Icons.flag_outlined),
+              label: Text(context.l10n.t('finishWorkout')),
+            )
+          : current == null
+              ? null
+              : FilledButton.icon(
+                  onPressed: () => _complete(context, current),
+                  icon: const Icon(Icons.check),
+                  label: Text(context.l10n.t('completeExercise')),
+                ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          // Header: day, date, exercise count, progress (WORKOUT_FLOW §2).
           HeroCard(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Icon(Icons.timer_outlined, color: Colors.white, size: 26),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        context.l10n.t('workoutInProgress'),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        context.l10n.date(snapshot.session.startedAt),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        '${weekDayName(snapshot.day.weekDay, context.l10n.locale)} · ${context.l10n.date(snapshot.session.startedAt)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.white70,
                             ),
                       ),
-                    ],
+                    ),
+                    Text(
+                      '$total ${context.l10n.t('exercises')}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                  ],
+                ),
+                if (total > 0) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Text(
+                    progressLabel,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
-                ),
-                Text(
-                  '${snapshot.exercises.length} ${context.l10n.t('exercises')}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
-                ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: total == 0 ? 0 : doneCount / total,
+                      minHeight: 8,
+                      backgroundColor: Colors.white24,
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
-          if (snapshot.exercises.isEmpty)
+          if (exercises.isEmpty)
             EmptyState(
               message: context.l10n.t('noExercises'),
               icon: Icons.fitness_center_outlined,
@@ -170,17 +233,71 @@ class _ActiveWorkout extends StatelessWidget {
                 label: Text(context.l10n.t('discard')),
               ),
             )
+          else if (current != null)
+            // The current exercise, fully open for logging.
+            _ActiveExerciseCard(exerciseLog: current)
           else
-            // Level 1: today's exercise list. Tapping an exercise opens its
-            // own logging page where each set's weight/reps are recorded.
-            for (final exerciseLog in snapshot.exercises)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ExerciseListTile(exerciseLog: exerciseLog),
+            NotebookCard(
+              child: Column(
+                children: <Widget>[
+                  const IconBadge(
+                    icon: Icons.emoji_events,
+                    color: AppColors.success,
+                    size: 56,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.l10n.t('allExercisesDone'),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
               ),
+            ),
+          // Up Next: the other exercises, minimized (tap to open/edit).
+          if (exercises.length > 1 || (allDone && exercises.isNotEmpty)) ...[
+            SectionHeader(title: context.l10n.t('upNext')),
+            for (var index = 0; index < exercises.length; index += 1)
+              if (exercises[index].log.id != current?.log.id)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _UpNextTile(
+                    number: index + 1,
+                    exerciseLog: exercises[index],
+                    onTap: () => setState(
+                      () => _manualLogId = exercises[index].log.id,
+                    ),
+                  ),
+                ),
+          ],
+          // Early finish stays available but never as the primary action.
+          if (!allDone && exercises.isNotEmpty)
+            TextButton(
+              onPressed: () => _finish(context),
+              child: Text(context.l10n.t('finishEarly')),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _complete(
+    BuildContext context,
+    ActiveExerciseLog exerciseLog,
+  ) async {
+    try {
+      await GymScope.of(context).completeExercise(exerciseLog.log.id);
+      if (mounted) {
+        // Return to automatic selection: the next not-done exercise opens.
+        setState(() => _manualLogId = null);
+      }
+    } catch (error) {
+      if (context.mounted) {
+        showAppError(context, error);
+      }
+    }
   }
 
   Future<void> _finish(BuildContext context) async {
@@ -203,134 +320,50 @@ class _ActiveWorkout extends StatelessWidget {
   }
 }
 
-/// One row in the active-workout exercise list, with completion progress.
-class _ExerciseListTile extends StatelessWidget {
-  const _ExerciseListTile({required this.exerciseLog});
+/// A minimized exercise row under "Up Next" (✓ when completed).
+class _UpNextTile extends StatelessWidget {
+  const _UpNextTile({
+    required this.number,
+    required this.exerciseLog,
+    required this.onTap,
+  });
 
+  final int number;
   final ActiveExerciseLog exerciseLog;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final exercise = exerciseLog.exercise;
-    final done = exerciseLog.sets.where((set) => set.isCompleted).length;
-    final total = exerciseLog.sets.length;
-    final allDone = total > 0 && done == total;
+    final done = exerciseLog.isDone;
     return NotebookCard(
-      padding: const EdgeInsets.all(14),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ExerciseLogScreen(logId: exerciseLog.log.id),
-          ),
-        );
-      },
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      onTap: onTap,
       child: Row(
         children: <Widget>[
           IconBadge(
-            icon: allDone ? Icons.check : Icons.fitness_center,
-            color: allDone ? AppColors.success : AppColors.primary,
+            icon: done ? Icons.check : Icons.fitness_center,
+            color: done ? AppColors.success : AppColors.textSecondary,
+            size: 32,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  exercise.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$total ${context.l10n.t('set')} · $done/$total ${context.l10n.t('completed')}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: allDone
-                            ? AppColors.success
-                            : AppColors.textSecondary,
-                      ),
-                ),
-              ],
+            child: Text(
+              '$number. ${exerciseLog.exercise.name}',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: done ? AppColors.success : AppColors.textPrimary,
+                  ),
             ),
           ),
-          if (exercise.targetMuscle != null) ...<Widget>[
-            Chip(label: Text(context.l10n.t(exercise.targetMuscle!))),
-            const SizedBox(width: 4),
-          ],
-          Icon(
-            Directionality.of(context) == TextDirection.rtl
-                ? Icons.chevron_left
-                : Icons.chevron_right,
-            color: AppColors.textSecondary,
+          Text(
+            done
+                ? context.l10n.t('completed')
+                : '${exerciseLog.sets.length} ${context.l10n.t('set')}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: done ? AppColors.success : AppColors.textSecondary,
+                ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Level 2: the logging page for one exercise — previous session, highlight,
-/// and one weight/reps row per set.
-class ExerciseLogScreen extends StatelessWidget {
-  const ExerciseLogScreen({required this.logId, super.key});
-
-  final int logId;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = GymScope.of(context);
-    final session = controller.activeSession;
-    ActiveExerciseLog? exerciseLog;
-    if (session != null) {
-      for (final log in session.exercises) {
-        if (log.log.id == logId) {
-          exerciseLog = log;
-          break;
-        }
-      }
-    }
-    if (exerciseLog == null) {
-      // Session finished/discarded elsewhere: leave this page.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-      });
-      return const Scaffold(body: SizedBox.shrink());
-    }
-    final done = exerciseLog.sets.where((set) => set.isCompleted).length;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(exerciseLog.exercise.name),
-        backgroundColor: AppColors.background,
-        surfaceTintColor: AppColors.background,
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.check),
-            label: Text(
-              '${context.l10n.t('done')} ($done/${exerciseLog.sets.length})',
-            ),
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: <Widget>[
-                _ActiveExerciseCard(exerciseLog: exerciseLog),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -518,13 +551,16 @@ class _ActiveExerciseCard extends StatelessWidget {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          for (final set in exerciseLog.sets)
+          for (var index = 0; index < exerciseLog.sets.length; index += 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _SetRow(
-                key: ValueKey<int>(set.id),
-                set: set,
+                key: ValueKey<int>(exerciseLog.sets[index].id),
+                set: exerciseLog.sets[index],
                 type: exercise.type,
+                targetReps: index < exerciseLog.targetReps.length
+                    ? exerciseLog.targetReps[index]
+                    : null,
               ),
             ),
           OutlinedButton.icon(
@@ -646,10 +682,18 @@ class _BestBlock extends StatelessWidget {
 }
 
 class _SetRow extends StatefulWidget {
-  const _SetRow({required this.set, required this.type, super.key});
+  const _SetRow({
+    required this.set,
+    required this.type,
+    this.targetReps,
+    super.key,
+  });
 
   final WorkoutSetLog set;
   final ExerciseType type;
+
+  /// Planned target reps from the program ("Target: 12 Reps"), if any.
+  final int? targetReps;
 
   @override
   State<_SetRow> createState() => _SetRowState();
@@ -673,15 +717,23 @@ class _SetRowState extends State<_SetRow> {
   @override
   void didUpdateWidget(covariant _SetRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only rewrite the text when it no longer represents the stored value,
-    // so refreshes don't clobber in-progress typing.
-    if (oldWidget.set.id != widget.set.id ||
+    // The text the user typed is the source of truth while this row lives.
+    // Rewrite it ONLY on a real external change: a different set, or the
+    // stored value itself changed (stepper/refresh). Comparing text against
+    // the possibly-stale snapshot would wipe typed input on any rebuild.
+    if (oldWidget.set.id != widget.set.id) {
+      _weightController.text =
+          widget.set.weight == null ? '' : formatWeight(widget.set.weight!);
+      _repsController.text = widget.set.reps?.toString() ?? '';
+      return;
+    }
+    if (oldWidget.set.weight != widget.set.weight &&
         InputValidation.parseWeight(_weightController.text) !=
             widget.set.weight) {
       _weightController.text =
           widget.set.weight == null ? '' : formatWeight(widget.set.weight!);
     }
-    if (oldWidget.set.id != widget.set.id ||
+    if (oldWidget.set.reps != widget.set.reps &&
         InputValidation.parseReps(_repsController.text) != widget.set.reps) {
       _repsController.text = widget.set.reps?.toString() ?? '';
     }
@@ -736,14 +788,27 @@ class _SetRowState extends State<_SetRow> {
                         ),
                   ),
                 ),
-                Checkbox(
-                  value: widget.set.isCompleted,
-                  onChanged: (value) {
-                    GymScope.of(context).updateSetAndRefresh(
-                      _composedSet(isCompleted: value ?? false),
-                    );
-                  },
-                ),
+                // "Target: 12 Reps" — planned in the program, reps only.
+                if (widget.targetReps != null)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 4),
+                    child: Text(
+                      '${context.l10n.t('target')}: ${widget.targetReps} ${context.l10n.t('reps')}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                if (completed)
+                  const Padding(
+                    padding: EdgeInsetsDirectional.only(end: 4),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
+                  ),
                 IconButton(
                   tooltip: context.l10n.t('delete'),
                   onPressed: () => GymScope.of(

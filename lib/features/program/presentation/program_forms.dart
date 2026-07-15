@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/localization/app_localizations.dart';
@@ -430,12 +431,31 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
   late ExerciseType _type =
       widget.assignment?.exercise.type ?? ExerciseType.weighted;
   late String? _muscle = widget.assignment?.exercise.targetMuscle;
-  late int _defaultSets = widget.assignment?.assignment.defaultSets ?? 3;
+
+  /// One controller per planned set, holding the optional TARGET REPS.
+  /// The program never plans weights (WORKOUT_FLOW.md §1).
+  late final List<TextEditingController> _targetControllers = _initTargets();
   bool _saving = false;
+
+  List<TextEditingController> _initTargets() {
+    final existing = widget.assignment?.targetReps;
+    final count = widget.assignment?.assignment.defaultSets ?? 3;
+    return List<TextEditingController>.generate(
+      count,
+      (index) => TextEditingController(
+        text: existing != null && index < existing.length
+            ? existing[index]?.toString() ?? ''
+            : '',
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
+    for (final controller in _targetControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -513,40 +533,12 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
             ],
             onChanged: (value) => setState(() => _muscle = value),
           ),
-          const SizedBox(height: 16),
-          // Spec §4.5/§10.4: program setup defines the STRUCTURE only —
-          // number of sets, never weights. Weights are logged in the workout.
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  context.l10n.t('defaultSets'),
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              IconButton.outlined(
-                tooltip: '-',
-                onPressed: _defaultSets <= 1
-                    ? null
-                    : () => setState(() => _defaultSets -= 1),
-                icon: const Icon(Icons.remove),
-              ),
-              SizedBox(
-                width: 48,
-                child: Text(
-                  _defaultSets.toString(),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              IconButton.outlined(
-                tooltip: '+',
-                onPressed: _defaultSets >= 20
-                    ? null
-                    : () => setState(() => _defaultSets += 1),
-                icon: const Icon(Icons.add),
-              ),
-            ],
+          const Divider(height: 24),
+          // Spec §4.5/§10.4: program setup defines STRUCTURE — set count and
+          // optional target reps. Weights are logged during the workout.
+          Text(
+            context.l10n.t('defaultSets'),
+            style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 4),
           Text(
@@ -555,6 +547,58 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                 .textTheme
                 .bodySmall
                 ?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < _targetControllers.length; index += 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 64,
+                    child: Text(
+                      '${context.l10n.t('set')} ${index + 1}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _targetControllers[index],
+                      keyboardType: TextInputType.number,
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText:
+                            '${context.l10n.t('target')} ${context.l10n.t('reps')} (${context.l10n.t('optional')})',
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.t('delete'),
+                    onPressed: _targetControllers.length <= 1
+                        ? null
+                        : () => setState(
+                            () => _targetControllers.removeAt(index).dispose()),
+                    icon: const Icon(Icons.close, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: _targetControllers.length >= 20
+                  ? null
+                  : () => setState(
+                      () => _targetControllers.add(TextEditingController())),
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.t('addSet')),
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -578,13 +622,18 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       final savedLabel = context.l10n.t('exerciseSaved');
       final controller = GymScope.of(context);
       final assignment = widget.assignment;
+      final targetReps = <int?>[
+        for (final target in _targetControllers)
+          InputValidation.parseReps(target.text),
+      ];
       if (assignment == null) {
         await controller.addExercise(
           workoutDayId: widget.workoutDayId,
           name: _nameController.text,
           type: _type,
-          defaultSets: _defaultSets,
+          defaultSets: targetReps.length,
           targetMuscle: _muscle,
+          targetReps: targetReps,
         );
       } else {
         await controller.updateExercise(
@@ -592,8 +641,9 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
           exerciseId: assignment.exercise.id,
           name: _nameController.text,
           type: _type,
-          defaultSets: _defaultSets,
+          defaultSets: targetReps.length,
           targetMuscle: _muscle,
+          targetReps: targetReps,
         );
       }
       if (mounted) {

@@ -265,8 +265,9 @@ class GymRepository {
     });
   }
 
-  // Program setup stores structure only (name, type, muscle, set COUNT).
-  // Actual weights/reps live exclusively in workout_set_logs (spec §4.5).
+  // Program setup stores structure only: name, type, muscle, set COUNT and
+  // optional TARGET REPS per set. Weights are never planned — they live
+  // exclusively in workout_set_logs (WORKOUT_FLOW.md §1, spec §4.5).
   Future<int> addExercise({
     required int workoutDayId,
     required String name,
@@ -274,6 +275,7 @@ class GymRepository {
     required int defaultSets,
     String? targetMuscle,
     String? muscleIconKey,
+    List<int?> targetReps = const <int?>[],
   }) async {
     final db = await _appDatabase.database;
     return db.transaction<int>((txn) async {
@@ -292,14 +294,19 @@ class GymRepository {
         where: 'workout_day_id = ?',
         whereArgs: <Object?>[workoutDayId],
       );
-      await txn.insert('workout_day_exercises', <String, Object?>{
-        'workout_day_id': workoutDayId,
-        'exercise_id': exerciseId,
-        'default_sets': defaultSets,
-        'sort_order': order,
-        'created_at': stamp,
-        'updated_at': stamp,
-      });
+      final sets = targetReps.isEmpty ? defaultSets : targetReps.length;
+      final assignmentId = await txn.insert(
+        'workout_day_exercises',
+        <String, Object?>{
+          'workout_day_id': workoutDayId,
+          'exercise_id': exerciseId,
+          'default_sets': sets,
+          'sort_order': order,
+          'created_at': stamp,
+          'updated_at': stamp,
+        },
+      );
+      await _replaceTargetReps(txn, assignmentId, targetReps, stamp);
       return exerciseId;
     });
   }
@@ -312,6 +319,7 @@ class GymRepository {
     required int defaultSets,
     String? targetMuscle,
     String? muscleIconKey,
+    List<int?> targetReps = const <int?>[],
   }) async {
     final db = await _appDatabase.database;
     await db.transaction<void>((txn) async {
@@ -328,13 +336,39 @@ class GymRepository {
         where: 'id = ?',
         whereArgs: <Object?>[exerciseId],
       );
+      final sets = targetReps.isEmpty ? defaultSets : targetReps.length;
       await txn.update(
         'workout_day_exercises',
-        <String, Object?>{'default_sets': defaultSets, 'updated_at': stamp},
+        <String, Object?>{'default_sets': sets, 'updated_at': stamp},
         where: 'id = ?',
         whereArgs: <Object?>[assignmentId],
       );
+      await _replaceTargetReps(txn, assignmentId, targetReps, stamp);
     });
+  }
+
+  /// Rewrites per-set target reps. `target_weight` is intentionally never
+  /// written: the program must not plan weights.
+  Future<void> _replaceTargetReps(
+    DatabaseExecutor txn,
+    int assignmentId,
+    List<int?> targetReps,
+    String stamp,
+  ) async {
+    await txn.delete(
+      'workout_day_exercise_sets',
+      where: 'workout_day_exercise_id = ?',
+      whereArgs: <Object?>[assignmentId],
+    );
+    for (var index = 0; index < targetReps.length; index += 1) {
+      await txn.insert('workout_day_exercise_sets', <String, Object?>{
+        'workout_day_exercise_id': assignmentId,
+        'set_number': index + 1,
+        'target_reps': targetReps[index],
+        'created_at': stamp,
+        'updated_at': stamp,
+      });
+    }
   }
 
   Future<void> deleteExerciseAssignment({
@@ -418,15 +452,17 @@ class GymRepository {
           'created_at': stamp,
           'updated_at': stamp,
         });
-        // Spec §10.6: create EMPTY set rows from the planned count. The
-        // program never provides weights — the user logs what they actually
-        // lift, and "Previous" shows last session's numbers for reference.
+        // WORKOUT_FLOW.md §3.2: weight is ALWAYS null (logged live); reps
+        // pre-fill from the program's target reps and stay editable.
         for (var setIndex = 0;
             setIndex < assignment.assignment.defaultSets;
             setIndex += 1) {
           await txn.insert('workout_set_logs', <String, Object?>{
             'workout_exercise_log_id': logId,
             'set_number': setIndex + 1,
+            'reps': setIndex < assignment.targetReps.length
+                ? assignment.targetReps[setIndex]
+                : null,
             'is_completed': 0,
             'created_at': stamp,
             'updated_at': stamp,
@@ -486,6 +522,21 @@ class GymRepository {
         whereArgs: <Object?>[log.id],
         orderBy: 'set_number ASC, id ASC',
       );
+      // Program targets for this exercise on this day ("Target: X reps").
+      final targetRows = await db.rawQuery(
+        '''
+        SELECT ts.set_number, ts.target_reps
+        FROM workout_day_exercise_sets ts
+        INNER JOIN workout_day_exercises wde
+          ON wde.id = ts.workout_day_exercise_id
+        WHERE wde.workout_day_id = ? AND wde.exercise_id = ?
+        ORDER BY ts.set_number ASC
+      ''',
+        <Object?>[session.workoutDayId, exercise.id],
+      );
+      final targetReps = <int?>[
+        for (final row in targetRows) row['target_reps'] as int?,
+      ];
       exercises.add(
         ActiveExerciseLog(
           log: log,
@@ -500,6 +551,7 @@ class GymRepository {
             exercise.type,
             excludeSessionId: sessionId,
           ),
+          targetReps: targetReps,
         ),
       );
     }
@@ -984,10 +1036,37 @@ class GymRepository {
         ExerciseAssignment(
           assignment: assignment,
           exercise: Exercise.fromMap(exerciseRows.single),
+          targetReps: await _targetRepsForAssignment(
+            executor,
+            assignment.id,
+            assignment.defaultSets,
+          ),
         ),
       );
     }
     return assignments;
+  }
+
+  /// Target reps per set for an assignment, padded with nulls to [setCount].
+  Future<List<int?>> _targetRepsForAssignment(
+    DatabaseExecutor executor,
+    int assignmentId,
+    int setCount,
+  ) async {
+    final rows = await executor.query(
+      'workout_day_exercise_sets',
+      where: 'workout_day_exercise_id = ?',
+      whereArgs: <Object?>[assignmentId],
+      orderBy: 'set_number ASC, id ASC',
+    );
+    final targets = List<int?>.filled(setCount, null, growable: true);
+    for (final row in rows) {
+      final index = (row['set_number'] as int) - 1;
+      if (index >= 0 && index < targets.length) {
+        targets[index] = row['target_reps'] as int?;
+      }
+    }
+    return targets;
   }
 
   Future<int> _nextSortOrder(

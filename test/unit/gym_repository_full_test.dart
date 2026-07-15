@@ -388,6 +388,74 @@ void main() {
           reason: 'highlight date must reflect when the best was achieved');
     });
   });
+  group('target reps (WORKOUT_FLOW.md R1+R2)', () {
+    test('R1: target reps are stored and read back; weight is never stored',
+        () async {
+      final seeded = await seedProgram(
+        db.repository,
+        defaultSets: 3,
+        targetReps: const <int?>[12, 10, 8],
+      );
+      final program = await db.repository.activeProgram();
+      final assignment = program!.days.single.exercises.single;
+      expect(assignment.targetReps, <int?>[12, 10, 8]);
+
+      // The planned-sets table must never carry a weight.
+      final database = await db.appDatabase.database;
+      final rows = await database.query('workout_day_exercise_sets');
+      expect(rows, hasLength(3));
+      expect(rows.every((r) => r['target_weight'] == null), isTrue);
+
+      // Verify seeded ids stay linked.
+      expect(assignment.exercise.id, seeded.exerciseId);
+    });
+
+    test('R1b: updateExercise replaces targets and set count', () async {
+      final seeded = await seedProgram(
+        db.repository,
+        defaultSets: 3,
+        targetReps: const <int?>[12, 10, 8],
+      );
+      final program = await db.repository.activeProgram();
+      final assignment = program!.days.single.exercises.single;
+      await db.repository.updateExercise(
+        assignmentId: assignment.assignment.id,
+        exerciseId: seeded.exerciseId,
+        name: 'Bench Press',
+        type: ExerciseType.weighted,
+        defaultSets: 2,
+        targetReps: const <int?>[15, null],
+      );
+      final after = await db.repository.activeProgram();
+      final updated = after!.days.single.exercises.single;
+      expect(updated.assignment.defaultSets, 2);
+      expect(updated.targetReps, <int?>[15, null]);
+    });
+
+    test('R2: startWorkout pre-fills reps from targets, weight stays NULL',
+        () async {
+      final seeded = await seedProgram(
+        db.repository,
+        defaultSets: 3,
+        targetReps: const <int?>[12, 10, 8],
+      );
+      final session = await db.repository.startWorkout(seeded.dayId);
+      final sets = session.exercises.single.sets;
+      expect(sets.map((s) => s.reps), <int?>[12, 10, 8]);
+      expect(sets.every((s) => s.weight == null), isTrue);
+      expect(sets.every((s) => !s.isCompleted), isTrue);
+      // Targets are exposed for the "Target: X reps" labels.
+      expect(session.exercises.single.targetReps, <int?>[12, 10, 8]);
+    });
+
+    test('R2b: without targets, sets start fully empty', () async {
+      final seeded = await seedProgram(db.repository, defaultSets: 2);
+      final session = await db.repository.startWorkout(seeded.dayId);
+      final sets = session.exercises.single.sets;
+      expect(sets.every((s) => s.reps == null && s.weight == null), isTrue);
+    });
+  });
+
   group('monthly report', () {
     test('sessionsBetween returns completed workouts with played sets',
         () async {

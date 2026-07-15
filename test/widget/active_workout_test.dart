@@ -58,11 +58,13 @@ void main() {
     });
     await tester.pump();
 
-    // The active workout page must list the exercise with its set progress.
+    // The wizard opens the first exercise directly with its set fields.
     expect(find.text('Push Day'), findsWidgets);
     expect(find.text('Bench Press'), findsWidgets);
-    expect(find.text('Finish Workout'), findsOneWidget);
-    expect(find.textContaining('0/3'), findsWidgets);
+    expect(find.text('Exercise 1 of 1'), findsOneWidget);
+    expect(find.text('Set 1'), findsOneWidget);
+    expect(find.text('Set 3'), findsOneWidget);
+    expect(find.text('Complete Exercise'), findsOneWidget);
 
     await tester.runAsync(() async {
       final path = p.join(

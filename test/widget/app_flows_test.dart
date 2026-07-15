@@ -94,15 +94,9 @@ void main() {
     });
   });
 
-  /// Opens the per-exercise logging page from the active-workout list
-  /// (level 1 -> level 2 of the workout flow).
-  Future<void> openExercise(WidgetTester tester, String name) async {
-    await tapTile(tester, find.text(name).first);
-  }
-
   group('IT-003 active workout logging', () {
     testWidgets(
-        'CRITICAL: typing weight+reps then completing the set keeps values',
+        'CRITICAL: typing weight+reps then completing the exercise keeps values',
         (tester) async {
       final seeded = await tester.runAsync(
         () => seedProgram(db.repository, defaultSets: 1),
@@ -114,24 +108,18 @@ void main() {
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
       await pumpWorkoutOnly(tester);
 
-      // Level 1: the exercise list shows the exercise with its set count.
+      // The wizard opens the exercise directly — fields visible immediately.
       expect(find.text('Bench Press'), findsOneWidget);
-      expect(find.textContaining('0/1'), findsOneWidget);
-
-      // Level 2: open the exercise to log its sets.
-      await openExercise(tester, 'Bench Press');
       final fields = find.byType(TextField);
       await typeText(tester, fields.at(0), '42.5');
       await typeText(tester, fields.at(1), '10');
-      await toggleCheckbox(tester, find.byType(Checkbox), true);
+
+      await pressButton<FilledButton>(tester, find.text('Complete Exercise'));
 
       final set = controller.activeSession!.exercises.single.sets.first;
       expect(set.weight, 42.5, reason: 'typed weight must survive completion');
       expect(set.reps, 10, reason: 'typed reps must survive completion');
       expect(set.isCompleted, isTrue);
-
-      expect(tester.widget<TextField>(fields.at(0)).controller!.text, '42.5');
-      expect(tester.widget<TextField>(fields.at(1)).controller!.text, '10');
     });
 
     testWidgets('weight stepper +2.5 does not clobber typed reps',
@@ -145,7 +133,6 @@ void main() {
           ));
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
       await pumpWorkoutOnly(tester);
-      await openExercise(tester, 'Bench Press');
 
       final fields = find.byType(TextField);
       await typeText(tester, fields.at(1), '8');
@@ -167,7 +154,6 @@ void main() {
           ));
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
       await pumpWorkoutOnly(tester);
-      await openExercise(tester, 'Bench Press');
 
       await pressButton<OutlinedButton>(tester, find.text('Add Set'));
       expect(find.text('Set 3'), findsOneWidget);
@@ -184,17 +170,23 @@ void main() {
       expect(find.text('Set 2'), findsOneWidget);
     });
 
-    testWidgets('finish with no completed sets shows localized warning',
+    testWidgets('early finish with no completed sets shows localized warning',
         (tester) async {
       final seeded = await tester.runAsync(
         () => seedProgram(db.repository, defaultSets: 1),
       );
-      await pumpApp(tester);
+      await tester.runAsync(() => db.repository.saveSettings(
+            languageCode: 'en',
+            onboardingCompleted: true,
+          ));
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
-      await tester.pump();
-      await tester.pump();
+      await pumpWorkoutOnly(tester);
 
-      await pressButton<FilledButton>(tester, find.text('Finish Workout'));
+      // Finish is only a secondary "early finish" link during the workout.
+      await pressButton<TextButton>(
+        tester,
+        find.text('Finish workout early'),
+      );
       expect(
         find.text('Log at least one completed set before finishing.'),
         findsOneWidget,
@@ -253,7 +245,6 @@ void main() {
           ));
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
       await pumpWorkoutOnly(tester);
-      await openExercise(tester, 'Bench Press');
 
       expect(find.text('Previous'), findsOneWidget);
       expect(find.textContaining('40kg x 10'), findsWidgets);
@@ -335,7 +326,6 @@ void main() {
       await tester.runAsync(() => controller.changeWeightUnit('lb'));
       await tester.runAsync(() => controller.startWorkout(seeded!.dayId));
       await pumpWorkoutOnly(tester);
-      await openExercise(tester, 'Bench Press');
 
       expect(find.text('Weight lb'), findsWidgets);
     });

@@ -46,8 +46,11 @@ class AppPage extends StatelessWidget {
           ? null
           : SafeArea(
               top: false,
+              // heightFactor 1.0 shrink-wraps the bar to its child; without
+              // it Align expands and floating SnackBars assert off-screen.
               child: Align(
                 alignment: Alignment.bottomCenter,
+                heightFactor: 1.0,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),
                   child: Padding(

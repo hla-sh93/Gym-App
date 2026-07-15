@@ -247,8 +247,15 @@ void main() {
       await pumpWorkoutOnly(tester);
 
       expect(find.text('Previous'), findsOneWidget);
-      expect(find.textContaining('40kg x 10'), findsWidgets);
-      expect(find.textContaining('42.5kg x 8'), findsWidgets);
+      // Set lines are color-coded RichText (weight blue, reps orange).
+      expect(
+        find.textContaining('40kg x 10', findRichText: true),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('42.5kg x 8', findRichText: true),
+        findsWidgets,
+      );
       // Highlight: highest weight with last-achieved date (spec 12.2.1).
       expect(find.textContaining('Highest weight'), findsWidgets);
       expect(find.textContaining('Last achieved'), findsWidgets);

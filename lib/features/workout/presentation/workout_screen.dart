@@ -477,12 +477,9 @@ class WorkoutSummaryScreen extends StatelessWidget {
                             for (final set in exercise.sets)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 2),
-                                child: Text(
-                                  formatSetLine(
-                                    context,
-                                    set,
-                                    exercise.exercise.type,
-                                  ),
+                                child: SetLine(
+                                  set: set,
+                                  type: exercise.exercise.type,
                                 ),
                               ),
                           ],
@@ -632,11 +629,10 @@ class _PreviousBlock extends StatelessWidget {
                   for (final set in previous.sets)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        formatSetLine(context, set, exerciseLog.exercise.type),
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                      child: SetLine(
+                        set: set,
+                        type: exerciseLog.exercise.type,
+                        emphasize: true,
                       ),
                     ),
                 ],
@@ -788,14 +784,15 @@ class _SetRowState extends State<_SetRow> {
                         ),
                   ),
                 ),
-                // "Target: 12 Reps" — planned in the program, reps only.
+                // "Target: 12 Reps" — planned in the program, reps only,
+                // so it wears the reps color.
                 if (widget.targetReps != null)
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: 4),
                     child: Text(
                       '${context.l10n.t('target')}: ${widget.targetReps} ${context.l10n.t('reps')}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.primary,
+                            color: AppColors.repsColor,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
@@ -828,6 +825,7 @@ class _SetRowState extends State<_SetRow> {
                       controller: _weightController,
                       label:
                           '${context.l10n.t('weight')} ${weightUnitLabel(context)}',
+                      accent: AppColors.weightColor,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -843,6 +841,7 @@ class _SetRowState extends State<_SetRow> {
                   _NumberStepperField(
                     controller: _repsController,
                     label: context.l10n.t('reps'),
+                    accent: AppColors.repsColor,
                     keyboardType: TextInputType.number,
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.digitsOnly,
@@ -921,6 +920,7 @@ class _NumberStepperField extends StatelessWidget {
   const _NumberStepperField({
     required this.controller,
     required this.label,
+    required this.accent,
     required this.keyboardType,
     required this.inputFormatters,
     required this.decrementLabel,
@@ -932,6 +932,9 @@ class _NumberStepperField extends StatelessWidget {
 
   final TextEditingController controller;
   final String label;
+
+  /// Color identity of this value (blue for weight, orange for reps).
+  final Color accent;
   final TextInputType keyboardType;
   final List<TextInputFormatter> inputFormatters;
   final String decrementLabel;
@@ -944,7 +947,11 @@ class _NumberStepperField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        _StepperButton(label: decrementLabel, onPressed: onDecrement),
+        _StepperButton(
+          label: decrementLabel,
+          accent: accent,
+          onPressed: onDecrement,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(
@@ -952,12 +959,31 @@ class _NumberStepperField extends StatelessWidget {
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
             textAlign: TextAlign.center,
-            decoration: InputDecoration(labelText: label),
+            style: TextStyle(
+              color: accent,
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w600,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: accent, width: 1.6),
+              ),
+            ),
             onChanged: onChanged,
           ),
         ),
         const SizedBox(width: 8),
-        _StepperButton(label: incrementLabel, onPressed: onIncrement),
+        _StepperButton(
+          label: incrementLabel,
+          accent: accent,
+          onPressed: onIncrement,
+        ),
       ],
     );
   }
@@ -966,9 +992,14 @@ class _NumberStepperField extends StatelessWidget {
 /// Compact quick-increment button ("-2.5" / "+2.5" / "-" / "+"). Zero padding
 /// and a single line so the label never wraps into unreadable columns.
 class _StepperButton extends StatelessWidget {
-  const _StepperButton({required this.label, required this.onPressed});
+  const _StepperButton({
+    required this.label,
+    required this.accent,
+    required this.onPressed,
+  });
 
   final String label;
+  final Color accent;
   final VoidCallback onPressed;
 
   @override
@@ -981,6 +1012,8 @@ class _StepperButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
           minimumSize: const Size(54, 48),
+          foregroundColor: accent,
+          side: BorderSide(color: accent.withValues(alpha: 0.45)),
           textStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,

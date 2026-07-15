@@ -221,10 +221,7 @@ class _SessionReportCard extends StatelessWidget {
             for (final set in exercise.sets)
               Padding(
                 padding: const EdgeInsetsDirectional.only(start: 8, bottom: 2),
-                child: Text(
-                  formatSetLine(context, set, exercise.exercise.type),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                child: SetLine(set: set, type: exercise.exercise.type),
               ),
             const SizedBox(height: 6),
           ],

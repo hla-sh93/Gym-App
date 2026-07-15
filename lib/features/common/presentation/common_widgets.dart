@@ -327,18 +327,60 @@ String formatWeight(num value) {
   return asDouble.toStringAsFixed(2);
 }
 
-String formatSetLine(
-  BuildContext context,
-  WorkoutSetLog set,
-  ExerciseType type, {
-  bool isBest = false,
-}) {
-  final star = isBest ? ' ★' : '';
-  if (type == ExerciseType.weighted) {
-    final weight = set.weight == null ? '-' : formatWeight(set.weight!);
+/// One recorded set as a color-coded line: the weight is blue and the reps
+/// are orange, so the two numbers are distinguishable at a glance.
+/// Weighted:  "Set 1 · 40kg x 12"   Reps-only: "Set 1 · 20 reps"
+class SetLine extends StatelessWidget {
+  const SetLine({
+    required this.set,
+    required this.type,
+    this.isBest = false,
+    this.emphasize = false,
+    super.key,
+  });
+
+  final WorkoutSetLog set;
+  final ExerciseType type;
+  final bool isBest;
+
+  /// Larger/bolder variant (used in the Previous block during a workout).
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final base = (emphasize ? theme.textTheme.bodyLarge : theme.textTheme.bodyMedium)
+        ?.copyWith(fontWeight: emphasize ? FontWeight.w600 : FontWeight.w400);
+    final weightStyle = base?.copyWith(
+      color: AppColors.weightColor,
+      fontWeight: FontWeight.w700,
+    );
+    final repsStyle = base?.copyWith(
+      color: AppColors.repsColor,
+      fontWeight: FontWeight.w700,
+    );
     final reps = set.reps?.toString() ?? '-';
-    return '${context.l10n.t('set')} ${set.setNumber} · $weight${weightUnitLabel(context)} x $reps$star';
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: <InlineSpan>[
+          TextSpan(text: '${context.l10n.t('set')} ${set.setNumber} · '),
+          if (type == ExerciseType.weighted) ...<InlineSpan>[
+            TextSpan(
+              text:
+                  '${set.weight == null ? '-' : formatWeight(set.weight!)}${weightUnitLabel(context)}',
+              style: weightStyle,
+            ),
+            const TextSpan(text: ' x '),
+            TextSpan(text: reps, style: repsStyle),
+          ] else
+            TextSpan(
+              text: '$reps ${context.l10n.t('reps')}',
+              style: repsStyle,
+            ),
+          if (isBest) const TextSpan(text: ' ★'),
+        ],
+      ),
+    );
   }
-  final reps = set.reps?.toString() ?? '-';
-  return '${context.l10n.t('set')} ${set.setNumber} · $reps ${context.l10n.t('reps')}$star';
 }

@@ -346,13 +346,10 @@ class _ExerciseHistorySheetState extends State<_ExerciseHistorySheet> {
                                     ),
                                     const SizedBox(height: 4),
                                     for (final set in entry.sets)
-                                      Text(
-                                        formatSetLine(
-                                          context,
-                                          set,
-                                          exercise.type,
-                                          isBest: bestSet?.id == set.id,
-                                        ),
+                                      SetLine(
+                                        set: set,
+                                        type: exercise.type,
+                                        isBest: bestSet?.id == set.id,
                                       ),
                                   ],
                                 ),
@@ -619,9 +616,17 @@ class _EditSetRowState extends State<_EditSetRow> {
                         decimalWeightFormatter(),
                       ],
                       textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.weightColor,
+                        fontWeight: FontWeight.w700,
+                      ),
                       decoration: InputDecoration(
                         labelText:
                             '${context.l10n.t('weight')} ${weightUnitLabel(context)}',
+                        labelStyle: const TextStyle(
+                          color: AppColors.weightColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       onChanged: (_) => widget.onSave(_composedSet()),
                     ),
@@ -636,8 +641,16 @@ class _EditSetRowState extends State<_EditSetRow> {
                       FilteringTextInputFormatter.digitsOnly,
                     ],
                     textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.repsColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                     decoration: InputDecoration(
                       labelText: context.l10n.t('reps'),
+                      labelStyle: const TextStyle(
+                        color: AppColors.repsColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     onChanged: (_) => widget.onSave(_composedSet()),
                   ),

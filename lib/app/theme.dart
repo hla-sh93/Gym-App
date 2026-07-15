@@ -19,6 +19,12 @@ class AppColors {
   );
   static const success = Color(0xFF16A34A);
   static const successSoft = Color(0xFFF0FDF4);
+
+  /// Weight values are always shown in blue, reps in orange, so the two
+  /// numbers are distinguishable at a glance mid-workout.
+  static const weightColor = primary;
+  static const repsColor = Color(0xFFEA580C);
+  static const repsSoft = Color(0xFFFFF7ED);
   static const warning = Color(0xFFF59E0B);
   static const danger = Color(0xFFEF4444);
 }
